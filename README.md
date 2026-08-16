@@ -1,11 +1,14 @@
 # PlayMesh
 
+> **Hand-coded.** This project is written by hand, purely by hand — docs are the
+> spec, code follows them line by line. No generated code, no scaffolding tools.
+
 **Real-Time Multiplayer Game**
 
 - Features: Real-time communication between players, game state synchronization, leaderboard.
-- Technologies: WebRTC Data Channels, React, Node.js, TypeScript.
+- Technologies: WebRTC (media plane), React, Bun, TypeScript.
 - Description: Develop a multiplayer game website where players can compete in real-time. Use WebRTC for player communication and state synchronization.
-- Game engines, RTC, Server state management, Distributing via APKs, Operational - Figuring out licenses
+- Game engines, RTC, Server state management, Distributing via APKs, Operational — Figuring out licenses: `ludo.js` is GPL-class (copyleft on distribution, relevant to APK shipping); our chess implementation is self-written; reference repos are MIT-class. Decision due before Phase 7 — see `roadmap.md`.
 - Example:
 - Ludo app where you can also bet, connect over webrtc like a video call, have a user auth and profile, can see your history
     -[lib-ludo.js](https://github.com/nerdev-org/ludo.js/)
@@ -33,12 +36,23 @@ This repo is a **Turborepo monorepo** with two workspace roots:
 ```
 playmesh/
 ├── apps/
-│   ├── server/           ← Go/Node game server
+│   ├── server/           ← main server (Bun, HTTP): auth bootstrap, history, gateway resolution
+│   ├── ws-gateway/       ← WebSocket gateway (Bun): rooms, engines, matchmaking, bot fill
 │   └── web/              ← Next.js frontend
 └── packages/
+    ├── protocol/         ← envelope + message types (protocol.md)
+    ├── types/            ← shared domain types (Player, Room, Match, Seat)
     └── engines/
-        └── chess/        ← lib-chess.js lives here
+        ├── core/         ← GameEngine interface + registry
+        ├── chess/        ← lib-chess.js lives here
+        └── ludo/         ← ludo engine lives here
 ```
+
+Two processes, one seam: `apps/ws-gateway` handles everything live over the
+WebSocket (room state in memory, engine sessions, delta buffer) and writes
+matches/events to Postgres directly; `apps/server` handles the cold path
+(auth, history, gateway resolution). Redis is the ephemeral glue — presence,
+matchmaking queues, dedup, room→gateway routing. See `docs/architecture.md`.
 
 ### 1. `packages/engines/chess/` — The Package
 
@@ -58,9 +72,10 @@ packages/engines/chess/
 
 The `apps/*` and `packages/*` globs in root `package.json:25-28` automatically link these workspaces together.
 
-### 2. Server Consumes It
+### 2. The Gateway Consumes It
 
-The server (`apps/server/`) declares the dependency in its own `package.json`:
+The ws-gateway (`apps/ws-gateway/`) declares the dependency in its own
+`package.json`:
 
 ```json
 {
@@ -70,22 +85,18 @@ The server (`apps/server/`) declares the dependency in its own `package.json`:
 }
 ```
 
-Usage in a room session:
+Usage in a room session (the gateway holds one engine instance per active
+room; on `GAME_ACTION` it validates seat/turn, applies, and broadcasts the
+produced events):
 
-```go
-// pseudocode — server holds one engine instance per active room
-type ChessRoom struct {
-    engine *chess.Chess
+```ts
+// pseudocode — one session per room in the gateway
+class ChessSession {
+  engine: GameEngine; // created via the engine registry
+  // on GAME_ACTION from seat s:
+  //   const { events, state, gameOver, result } = this.engine.applyAction(this.state, s, action)
+  //   → bump stateVersion per event, buffer, broadcast, persist batch
 }
-
-func (r *ChessRoom) ApplyAction(seat int, action Action) ([]Event, error) {
-    if !r.engine.IsLegal(action) {
-        return nil, ErrInvalidAction
-    }
-    r.engine.Move(action.From, action.To)
-    return r.engine.Events(), nil  // delta events to broadcast
-}
-```
 
 ### 3. Client Consumes It
 
@@ -134,7 +145,7 @@ The protocol package (`packages/protocol/`) can import these so `GAME_ACTION` an
 | Layer | Consumes `@playmesh/chess` | Purpose |
 |-------|---------------------------|---------|
 | `packages/engines/chess` | — | Defines and exports the engine |
-| `apps/server` | `workspace:*` | Authoritative validation, state, bot AI |
+| `apps/ws-gateway` | `workspace:*` | Authoritative validation, state, bot AI |
 | `apps/web` | `workspace:*` | Rendering, move preview, UX validation |
 | `packages/protocol` | `workspace:*` | Types for message schemas |
 

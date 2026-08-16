@@ -110,6 +110,11 @@ Dice games carry the random seed server-side; clients never send dice values.
 
 ## Reconnection
 
+Bootstrap: the client first calls the main server's HTTP API for a guest token
+**and the gateway URL** (or the owning gateway for a room it's already in),
+then opens the WS: `AUTH` → `RESUME`. Guest tokens are issued over HTTP in
+`apps/server`; the WS `AUTH` only presents them.
+
 ```
 client                          server
   |  AUTH { token }                |
@@ -127,6 +132,11 @@ Rules:
 - Disconnect + no resume within grace (45s) → `GAME_END` forfeit.
 - Actions sent with `requestId` are deduped via `(playerId, requestId)`; a
   retried action after reconnect gets an `ACK` with the same `stateVersion`.
+- **Affinity**: room state lives in the owning gateway's memory. Reconnects
+  must land there — the HTTP bootstrap resolves the owning gateway via Redis
+  (`room:{roomId}:gateway` / `player:{playerId}:gateway`). A reconnect to a
+  non-owning gateway is not supported in v1; a dead gateway degrades to
+  `ROOM_NOT_FOUND` with the match already safe in Postgres.
 
 ## Idempotency
 
@@ -291,6 +301,15 @@ the forfeit window.
   the maximum stall is bounded and deterministic; skipping turns in a dice game
   changes outcomes unfairly; and "paused" requires no clock/skip logic. The
   player's un-committed action was never applied, so resume is seamless.
+- **Replays: every match is reviewable.** Persist `match_events` (animated
+  replay) and `matches.final_state` (instant render) — see `persistence.md`.
+- **Hidden information: interface hook now, games later.** `viewFor(state,
+  seat)` is part of the engine contract but unused by chess/ludo (perfect
+  information). Events are always public-safe. See `engine.md`.
+- **Media in v1: relay + gating only.** Gateway relays `MEDIA_*` and enforces
+  `settings.media`; client WebRTC UI and TURN deployment are Phase 6. TURN is
+  self-hosted **coturn** in docker-compose (dev), managed provider
+  (Twilio/Cloudflare Calls) at scale. No SFU for ≤4 players.
 
 ## Open questions
 
