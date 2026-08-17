@@ -138,6 +138,44 @@ export type { Move, FEN, GameState, GameResult };
 
 The protocol package (`packages/protocol/`) can import these so `GAME_ACTION` and `GAME_STATE` schemas stay in sync with what the engine actually produces/consumes — no duplicated type definitions.
 
+## Tooling & Agent Skills
+
+### Package manager pin (`devEngines`)
+
+`package.json` pins the dev toolchain to **Bun 1.3.11** via `devEngines`:
+
+```json
+"devEngines": {
+  "packageManager": { "name": "bun", "version": "1.3.11" }
+}
+```
+
+What this does:
+- Guarantees every contributor (human or AI agent) uses the same package
+  manager/version — installs, lockfile (`bun.lock`), and scripts behave identically.
+- Modern npm (≥11) **refuses to run `npx` inside this project** when it
+  detects the pin (`EBADDEVENGINES: Invalid name "bun" does not match "npm"`).
+
+That makes `npx` unusable here by design — use `bunx` instead (bun does not
+enforce `devEngines`, and it's the pinned manager anyway):
+
+```bash
+bunx github:NalinDalal/skillset install --scope project                 # all skills
+bunx github:NalinDalal/skillset install --skill taste-skill --skill impeccable --scope project
+bunx github:NalinDalal/skillset list                                    # preview
+bunx github:NalinDalal/skillset install --undo                          # remove installed skills
+```
+
+This installs agent skills into `./.claude/skills`, `./.opencode/skills`,
+`./.cursor/skills`, `./.agents/skills`, `./.gemini/skills` (whichever
+directories are picked up by the agent harnesses you run in this repo).
+Restart/reload your agent after installing — skills auto-load from those
+folders when a matching task comes up (no manual paste-in of `.md` files).
+
+> Want `npx` back? Remove the `devEngines` block (or loosen it to
+> `"runtime": { "name": "node", "version": ">=18" }`), but since this repo is
+> bun-first, standardizing on `bunx` is the intended path.
+
 ---
 
 ## Summary
