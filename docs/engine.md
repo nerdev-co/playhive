@@ -70,8 +70,61 @@ interface GameEngine {
 
 ## Chess (reference implementation)
 
-- **State**: `{ fen }` — FEN carries side-to-move, castling rights, en passant,
-  move counters. Backed by `packages/engines/chess` (our `lib-chess.js`).
+Backed by `packages/engines/chess` (our `lib-chess.js`). Deterministic — no
+RNG anywhere, so event-log replay rebuilds state exactly.
+
+### State representation
+
+- **In-memory truth**: `{ board, turn, castling, ep, halfmove, fullmove }`
+  where `board` is a **flat 64 array** of `(Piece | null)[]`, `Piece = {
+  type, color }`.
+- FEN is an **import/export format**, not the state: FEN → 64-array on
+  `createInitialState`/resume; 64-array → FEN for history display and
+  `matches.final_state` (still plain JSON — satisfies the opaque-state
+  contract).
+- Indexing: `a1 = 0`, files `a-h` → `0-7`, ranks `1-8` → `rank*8 + file`
+  (rank 1 = index 0, rank 8 = 56..63). `index % 8` = file, `floor(index / 8)`
+  = rank.
+- Conversion: `squareToIndex("e4") = (4-1)*8 + ('e'-'a') = 28`;
+  `indexToSquare(28) = "e4"`.
+
+### Move generation
+
+- **No stored domains.** Legal moves are generated lazily per query — never
+  cached on pieces, never precomputed after a turn. Two-stage filter:
+  1. **Pseudo-legal** — piece-rule moves, minus own-piece captures.
+  2. **Legal** — simulate each, keep only moves where the mover's king is not
+     attacked afterward (this is what makes pinned pieces behave and prevents
+     moving into check).
+- **Sliding pieces** (rook/bishop/queen): walk each direction until edge or
+  piece — capture if enemy, stop; blocked if own.
+- **Fixed offsets** (knight/king): enumerate offsets, keep in-bounds +
+  file-valid + not own piece.
+- **Direction offsets**: +8 up, −8 down, ±1 horizontal, ±7/±9 diagonals.
+- **THE file-boundary guard** (the classic hand-code bug): from h1 (7), `+1`
+  = 8 which is a2 — looks legal, isn't. Never trust raw `index ± n` alone:
+  compute the target file from `index % 8` and verify the file delta
+  (horizontal/diagonal ≤ 1, knight ≤ 2) before accepting the step.
+- **Pawn**: forward blocked by any piece; captures diagonally only onto enemy;
+  double-step from start rank; promotion with choice; en passant.
+
+### Special rules (each has a trap)
+
+- **Castling** — needs *both*: unmoved king+rook and empty squares *and* the
+  king not in, through, or into an attacked square. The attacked-square check
+  is the same primitive as check detection.
+- **En passant** — the captured pawn is **not on the landing square**; it's one
+  rank back. The event must say so explicitly
+  (`captured: { square: "e5", by: "ep" }`) or replays diverge.
+- **Promotion** — the client chooses the piece; the `MOVE` **action** carries
+  `promotion` and the **event** records it, or replay diverges from live play.
+- **Draws** — stalemate, 50-move, threefold: `gameOver: true, result: {
+  winner: null, reason: "draw" }`. Checkmate: `winner` = opponent, `reason:
+  "checkmate"`.
+
+### Contract mapping
+
+- **State**: the 64-array object above (JSON-serializable).
 - **Actions**: `{ type: "MOVE", from: "e2", to: "e4", promotion?: "q" }`.
   `RESIGN` is not an engine action — resign/forfeit is session-level, produces
   `GAME_END` directly.
@@ -81,8 +134,8 @@ interface GameEngine {
   `NOT_YOUR_TURN` → gateway emits `ERROR`. No turn logic in gateway code.
 - **Colors**: `config.seatColors = { 0: "w", 1: "b" }`, randomized at start
   (fairness), engine-authoritative.
-- **Draws**: stalemate, 50-move, threefold — engine reports `gameOver: true,
-  result: { winner: null, reason: "draw" }`. No clocks, no draw offers in v1.
+- **Client mirror**: `apps/web` runs the same engine for legal-move highlights
+  and pre-validation (UX only) — never authority. Server validates regardless.
 
 ## Hidden information (future, hook exists)
 

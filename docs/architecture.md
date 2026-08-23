@@ -5,15 +5,15 @@ live-state glue.
 
 ```
 ┌─────────────┐   HTTP (REST)   ┌──────────────────┐
-│  apps/web   │ ───────────────▶│  apps/server     │──▶ Postgres
-│  (Next.js)  │ ◀───────────────│  (Bun, HTTP API) │    auth, match history
+│  apps/web   │ ───────────────▶│  apps/server     │──▶ Postgres (Prisma)
+│  (Next.js)  │ ◀───────────────│  (Bun, HTTP API) │    users, rooms, events, snapshots
 └──────┬──────┘                 └──────────────────┘
        │ WebSocket (envelope protocol)
        ▼
 ┌────────────────────────┐  direct writes  ┌──────────────┐
 │  apps/ws-gateway       │ ───────────────▶│   Postgres   │
-│  (Bun, WebSocket)      │                 │ matches,     │
-│  rooms · engines ·     │                 │ match_events │
+│  (Bun, WebSocket)      │                 │ rooms,       │
+│  rooms · engines ·     │                 │ room_events  │
 │  matchmaking · bots    │                 └──────────────┘
 │  delta buffer          │ ◀─────/──────▶  Redis
 └────────────────────────┘   presence, queues, dedup,
@@ -79,13 +79,30 @@ same gateway that owns the room.
 What the gateway does **not** do: proxy to other gateways, shard rooms across
 itself, or re-host an orphaned room. v1 keeps affinity simple.
 
+## Database Schema (Prisma)
+
+| Model | Key Fields |
+|-------|------------|
+| `User` | `id`, `name`, `email`, `passwordHash`, `avatarUrl`, `createdAt`, `updatedAt` |
+| `GameRoom` | `id`, `name`, `gameType`, `maxPlayers`, `status`, `settings`, `hostId`, `createdAt`, `startedAt`, `endedAt` |
+| `GameParticipant` | `id`, `gameRoomId`, `userId`, `seatPosition`, `score`, `status`, `joinedAt` |
+| `GameEvent` | `id`, `gameRoomId`, `sequenceNumber`, `eventType`, `payload`, `playerId`, `createdAt` |
+| `GameStateSnapshot` | `id`, `gameRoomId`, `sequenceNumber`, `state`, `createdAt` |
+
+Indexes: `(gameRoomId, sequenceNumber)` on events/snapshots; `(gameRoomId, seatPosition)` on participants.
+
+Auth: email/password (bcrypt). No OAuth v1.
+
 ## Engines
 
-`packages/engines/*` implement a common `GameEngine` interface
-(`packages/engines/core`): `createInitialState`, `applyAction(state, seat,
-action) → { events, state, gameOver, result }`, `legalActions`, and
-`chooseBotAction` for bots. The gateway's session layer is written once against
-this interface; chess, ludo, and anything later are drop-in packages.
+Separate processes per game type (`packages/engines/*` or standalone services). Common interface:
+```
+createInitialState(settings) → state
+applyAction(state, seat, action) → { events, state, gameOver, result }
+legalActions(state, seat) → action[]
+chooseBotAction(state, seat) → action
+```
+Gateway loads engine by `gameType`, runs it in-process (Node) or calls out via HTTP/Redis queue. Engine never writes DB — emits events, gateway persists.
 
 ## What is deliberately NOT here
 
