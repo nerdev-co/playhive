@@ -28,13 +28,13 @@ Every message is a JSON object:
 }
 ```
 
-| Field       | Direction     | Required | Meaning                                             |
-|-------------|---------------|----------|-----------------------------------------------------|
-| `v`         | both          | yes      | Envelope version. Mismatch → client rejects.        |
-| `type`      | both          | yes      | Message type (below).                               |
-| `requestId` | client→server | yes*     | Client-generated UUID. Dedup key; echoed in ACK.    |
-| `roomId`    | both          | no       | Present once a room is joined.                      |
-| `payload`   | both          | yes      | Type-specific body.                                 |
+| Field       | Direction     | Required | Meaning                                          |
+| ----------- | ------------- | -------- | ------------------------------------------------ |
+| `v`         | both          | yes      | Envelope version. Mismatch → client rejects.     |
+| `type`      | both          | yes      | Message type (below).                            |
+| `requestId` | client→server | yes*     | Client-generated UUID. Dedup key; echoed in ACK. |
+| `roomId`    | both          | no       | Present once a room is joined.                   |
+| `payload`   | both          | yes      | Type-specific body.                              |
 
 \* `requestId` required on anything the client may retry (`GAME_ACTION`,
 `JOIN_ROOM`, `QUEUE_JOIN`, signaling). Omit on heartbeats.
@@ -43,46 +43,46 @@ Every message is a JSON object:
 
 ### Client → Server
 
-| Type                 | Purpose                                                        |
-|----------------------|----------------------------------------------------------------|
-| `AUTH`               | Authenticate with session/guest token.                         |
-| `RESUME`             | Reconnect to a room: `{ roomId, lastStateVersion, lastSeq }`.  |
-| `CREATE_ROOM`        | `{ game, maxPlayers, private, settings: { media } }`.          |
-| `JOIN_ROOM`          | `{ inviteCode, media: { voice, video } }`.                     |
-| `LEAVE_ROOM`         | Leave room (before game start = unseat; forfeit if in progress).|
-| `PLAYER_READY`       | Mark ready.                                                    |
-| `PLAYER_UNREADY`     | Unmark ready.                                                  |
-| `START_GAME`         | Host only. Forces `STARTING` when ready conditions met.        |
-| `GAME_ACTION`        | Game-specific action: `{ seat, action }`.                      |
-| `ROOM_SETTINGS_UPDATE`| Host only. e.g. toggle `settings.media`.                      |
-| `QUEUE_JOIN`         | Matchmaking: `{ game, botFill: true, fillAfterMs }`.           |
-| `QUEUE_LEAVE`        | Leave matchmaking queue.                                       |
-| `MEDIA_OFFER`        | `{ to, payload: { sdp } }` — relayed to peer.                  |
-| `MEDIA_ANSWER`       | `{ to, payload: { sdp } }` — relayed to peer.                  |
-| `MEDIA_ICE`          | `{ to, payload: { candidate } }` — relayed to peer.            |
-| `PING`               | Heartbeat.                                                     |
+| Type                   | Purpose                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| `AUTH`                 | Authenticate with session/guest token.                           |
+| `RESUME`               | Reconnect to a room: `{ roomId, lastStateVersion, lastSeq }`.    |
+| `CREATE_ROOM`          | `{ game, maxPlayers, private, settings: { media } }`.            |
+| `JOIN_ROOM`            | `{ inviteCode, media: { voice, video } }`.                       |
+| `LEAVE_ROOM`           | Leave room (before game start = unseat; forfeit if in progress). |
+| `PLAYER_READY`         | Mark ready.                                                      |
+| `PLAYER_UNREADY`       | Unmark ready.                                                    |
+| `START_GAME`           | Host only. Forces `STARTING` when ready conditions met.          |
+| `GAME_ACTION`          | Game-specific action: `{ seat, action }`.                        |
+| `ROOM_SETTINGS_UPDATE` | Host only. e.g. toggle `settings.media`.                         |
+| `QUEUE_JOIN`           | Matchmaking: `{ game, botFill: true, fillAfterMs }`.             |
+| `QUEUE_LEAVE`          | Leave matchmaking queue.                                         |
+| `MEDIA_OFFER`          | `{ to, payload: { sdp } }` — relayed to peer.                    |
+| `MEDIA_ANSWER`         | `{ to, payload: { sdp } }` — relayed to peer.                    |
+| `MEDIA_ICE`            | `{ to, payload: { candidate } }` — relayed to peer.              |
+| `PING`                 | Heartbeat.                                                       |
 
 ### Server → Client
 
-| Type                 | Purpose                                                        |
-|----------------------|----------------------------------------------------------------|
-| `AUTH_OK`            | `{ playerId, token }`.                                         |
-| `AUTH_ERROR`         | `{ code }`.                                                    |
-| `ROOM_CREATED`       | `{ roomId, inviteCode, room }` full room snapshot.             |
-| `ROOM_UPDATE`        | Full room snapshot: seats, players, settings, status. The room truth.|
-| `ROOM_STATE_CHANGE`  | `{ from, to }` lifecycle transition.                           |
-| `PLAYER_JOINED`      | `{ seat, player }`.                                            |
-| `PLAYER_LEFT`        | `{ seat, reason: "left" | "kicked" }`.                         |
-| `PLAYER_DISCONNECTED`| `{ seat }`.                                                    |
-| `PLAYER_RECONNECTED` | `{ seat }`.                                                    |
-| `FORFEIT_WINDOW`     | `{ seat, forfeitAt }` grace timer started.                     |
-| `GAME_START`         | `{ seatOrder, config, initialState }`.                         |
-| `GAME_STATE`         | `{ kind: "snapshot" | "delta", stateVersion, state }`.         |
-| `GAME_END`           | `{ result, winner, reason, stats }`.                           |
-| `MATCH_FOUND`        | `{ roomId, inviteCode }` → client joins with auto-ready.       |
-| `ACK`                | `{ requestId, stateVersion }` action applied.                  |
-| `ERROR`              | `{ code, message, requestId? }`.                               |
-| `PONG`               | Heartbeat reply.                                               |
+| Type                  | Purpose                                                               |
+| --------------------- | --------------------------------------------------------------------- |
+| `AUTH_OK`             | `{ playerId, token }`.                                                |
+| `AUTH_ERROR`          | `{ code }`.                                                           |
+| `ROOM_CREATED`        | `{ roomId, inviteCode, room }` full room snapshot.                    |
+| `ROOM_UPDATE`         | Full room snapshot: seats, players, settings, status. The room truth. |
+| `ROOM_STATE_CHANGE`   | `{ from, to }` lifecycle transition.                                  |
+| `PLAYER_JOINED`       | `{ seat, player }`.                                                   |
+| `PLAYER_LEFT`         | `{ seat, reason: "left"                                               | "kicked" }`.                     |
+| `PLAYER_DISCONNECTED` | `{ seat }`.                                                           |
+| `PLAYER_RECONNECTED`  | `{ seat }`.                                                           |
+| `FORFEIT_WINDOW`      | `{ seat, forfeitAt }` grace timer started.                            |
+| `GAME_START`          | `{ seatOrder, config, initialState }`.                                |
+| `GAME_STATE`          | `{ kind: "snapshot"                                                   | "delta", stateVersion, state }`. |
+| `GAME_END`            | `{ result, winner, reason, stats }`.                                  |
+| `MATCH_FOUND`         | `{ roomId, inviteCode }` → client joins with auto-ready.              |
+| `ACK`                 | `{ requestId, stateVersion }` action applied.                         |
+| `ERROR`               | `{ code, message, requestId? }`.                                      |
+| `PONG`                | Heartbeat reply.                                                      |
 
 ## Game actions
 
@@ -94,7 +94,10 @@ Actions are opaque to the room. The engine validates and applies them.
   "type": "GAME_ACTION",
   "requestId": "req-41",
   "roomId": "pm-7f3a",
-  "payload": { "seat": 0, "action": { "type": "MOVE", "from": "e2", "to": "e4" } }
+  "payload": {
+    "seat": 0,
+    "action": { "type": "MOVE", "from": "e2", "to": "e4" }
+  }
 }
 ```
 
@@ -268,7 +271,11 @@ Typed codes: `NOT_AUTHED`, `ROOM_NOT_FOUND`, `ROOM_FULL`, `INVALID_ACTION`,
 `RATE_LIMITED`, `SERVER_ERROR`.
 
 ```json
-{ "v": 1, "type": "ERROR", "payload": { "code": "NOT_YOUR_TURN", "message": "..." } }
+{
+  "v": 1,
+  "type": "ERROR",
+  "payload": { "code": "NOT_YOUR_TURN", "message": "..." }
+}
 ```
 
 ## Heartbeats
@@ -304,7 +311,7 @@ the forfeit window.
 - **Replays: every match is reviewable.** Persist `match_events` (animated
   replay) and `matches.final_state` (instant render) — see `persistence.md`.
 - **Hidden information: interface hook now, games later.** `viewFor(state,
-  seat)` is part of the engine contract but unused by chess/ludo (perfect
+seat)` is part of the engine contract but unused by chess/ludo (perfect
   information). Events are always public-safe. See `engine.md`.
 - **Media in v1: relay + gating only.** Gateway relays `MEDIA_*` and enforces
   `settings.media`; client WebRTC UI and TURN deployment are Phase 6. TURN is

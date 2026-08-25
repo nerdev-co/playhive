@@ -7,11 +7,11 @@ ludo implement it, Uno/Poker/etc. are drop-in later.
 
 Three kinds of permission, three layers:
 
-| Permission | Owner | Examples |
-|-----------|-------|----------|
-| Identity (may this connection act here?) | **Gateway/session** | seated + authed + room `IN_PROGRESS` |
-| Turn + legality (is this action valid?) | **Engine** | chess: it's white's move; ludo: token can move 4 |
-| Visibility (what may this seat see?) | **Engine** (`viewFor`) | chess/ludo: everything; Uno/poker: projected views |
+| Permission                               | Owner                  | Examples                                           |
+| ---------------------------------------- | ---------------------- | -------------------------------------------------- |
+| Identity (may this connection act here?) | **Gateway/session**    | seated + authed + room `IN_PROGRESS`               |
+| Turn + legality (is this action valid?)  | **Engine**             | chess: it's white's move; ludo: token can move 4   |
+| Visibility (what may this seat see?)     | **Engine** (`viewFor`) | chess/ludo: everything; Uno/poker: projected views |
 
 Rule: the gateway never validates game rules, and the engine never sees the
 room. They meet only at actions and events.
@@ -20,7 +20,7 @@ room. They meet only at actions and events.
 
 ```ts
 interface GameEngine {
-  readonly id: string;                // "chess", "ludo", ...
+  readonly id: string; // "chess", "ludo", ...
   readonly displayName: string;
   readonly minPlayers: number;
   readonly maxPlayers: number;
@@ -29,16 +29,20 @@ interface GameEngine {
   // GameState is opaque JSON to the gateway. Must be plain serializable data
   // (no class instances, no functions) — it travels in envelopes and the DB.
 
-  applyAction(state: GameState, seat: number, action: EngineAction): ApplyResult;
+  applyAction(
+    state: GameState,
+    seat: number,
+    action: EngineAction,
+  ): ApplyResult;
   // throws EngineError { code: "NOT_YOUR_TURN" | "INVALID_ACTION" | ... }
   // ApplyResult = { events: GameEvent[], state: GameState, gameOver: boolean, result?: MatchResult }
 
-  legalActions(state: GameState, seat: number): EngineAction[];  // UI hints + bot input
-  canAct(state: GameState, seat: number): boolean;               // cheap turn check
+  legalActions(state: GameState, seat: number): EngineAction[]; // UI hints + bot input
+  canAct(state: GameState, seat: number): boolean; // cheap turn check
 
   chooseBotAction(state: GameState, seat: number): EngineAction | null;
 
-  viewFor?(state: GameState, seat: number): GameState;           // hidden-info games only
+  viewFor?(state: GameState, seat: number): GameState; // hidden-info games only
 }
 ```
 
@@ -54,7 +58,7 @@ interface GameEngine {
 - Events must be **public-safe**: for perfect-info games they carry full
   detail; hidden-info games emit only revealed knowledge
   (`played a red 5`, not `played the card you were holding`).
-- Outcomes are recorded *in the events* (a dice value is an event), so
+- Outcomes are recorded _in the events_ (a dice value is an event), so
   replay/rebuild is deterministic — no RNG replay problem.
 
 ## Bots
@@ -65,8 +69,8 @@ interface GameEngine {
 - Ludo: optimal move given the roll.
 - The gateway schedules bot turns with a small think delay (~700ms) so human
   opponents don't see instant teleporting moves.
-- Policy: after each settled action, the session loops — *whose turn? still a
-  bot? → think → act* — with a hard iteration cap so nothing can loop forever.
+- Policy: after each settled action, the session loops — _whose turn? still a
+  bot? → think → act_ — with a hard iteration cap so nothing can loop forever.
 
 ## Chess (reference implementation)
 
@@ -77,7 +81,7 @@ RNG anywhere, so event-log replay rebuilds state exactly.
 
 - **In-memory truth**: `{ board, turn, castling, ep, halfmove, fullmove }`
   where `board` is a **flat 64 array** of `(Piece | null)[]`, `Piece = {
-  type, color }`.
+type, color }`.
 - FEN is an **import/export format**, not the state: FEN → 64-array on
   `createInitialState`/resume; 64-array → FEN for history display and
   `matches.final_state` (still plain JSON — satisfies the opaque-state
@@ -110,7 +114,7 @@ RNG anywhere, so event-log replay rebuilds state exactly.
 
 ### Special rules (each has a trap)
 
-- **Castling** — needs *both*: unmoved king+rook and empty squares *and* the
+- **Castling** — needs _both_: unmoved king+rook and empty squares _and_ the
   king not in, through, or into an attacked square. The attacked-square check
   is the same primitive as check detection.
 - **En passant** — the captured pawn is **not on the landing square**; it's one
@@ -119,8 +123,8 @@ RNG anywhere, so event-log replay rebuilds state exactly.
 - **Promotion** — the client chooses the piece; the `MOVE` **action** carries
   `promotion` and the **event** records it, or replay diverges from live play.
 - **Draws** — stalemate, 50-move, threefold: `gameOver: true, result: {
-  winner: null, reason: "draw" }`. Checkmate: `winner` = opponent, `reason:
-  "checkmate"`.
+winner: null, reason: "draw" }`. Checkmate: `winner` = opponent, `reason:
+"checkmate"`.
 
 ### Contract mapping
 
@@ -129,7 +133,7 @@ RNG anywhere, so event-log replay rebuilds state exactly.
   `RESIGN` is not an engine action — resign/forfeit is session-level, produces
   `GAME_END` directly.
 - **Events**: one per move — `{ type: "move", from, to, piece, captured?,
-  promotion?, check?, checkmate? }`.
+promotion?, check?, checkmate? }`.
 - **Turn**: encoded in state; `applyAction` from the wrong side →
   `NOT_YOUR_TURN` → gateway emits `ERROR`. No turn logic in gateway code.
 - **Colors**: `config.seatColors = { 0: "w", 1: "b" }`, randomized at start

@@ -1,4 +1,4 @@
-# PlayMesh System Architecture
+# PlayHive System Architecture
 
 Two processes, one WebSocket transport, Postgres as durable truth, Redis as the
 live-state glue.
@@ -6,7 +6,7 @@ live-state glue.
 ```
 ┌─────────────┐   HTTP (REST)   ┌──────────────────┐
 │  apps/web   │ ───────────────▶│  apps/server     │──▶ Postgres (Prisma)
-│  (Next.js)  │ ◀───────────────│  (Bun, HTTP API) │    users, rooms, events, snapshots
+│  (tanstack)  │ ◀───────────────│  (Bun, HTTP API) │    users, rooms, events, snapshots
 └──────┬──────┘                 └──────────────────┘
        │ WebSocket (envelope protocol)
        ▼
@@ -50,11 +50,11 @@ means adding engine packages, not touching this split.
 
 ## Authority model
 
-| Layer | Authority |
-|-------|-----------|
-| Live room state | Gateway (in-memory, hot path) |
-| Durable truth | Postgres — written **by the gateway** via batched flush |
-| Ephemeral glue | Redis — presence, queues, dedup, routing; rebuildable |
+| Layer           | Authority                                               |
+| --------------- | ------------------------------------------------------- |
+| Live room state | Gateway (in-memory, hot path)                           |
+| Durable truth   | Postgres — written **by the gateway** via batched flush |
+| Ephemeral glue  | Redis — presence, queues, dedup, routing; rebuildable   |
 
 - Clients never mutate state. State flows down, actions flow up.
 - The gateway writes `match_events` in batches (1s or 50 events, whichever
@@ -81,13 +81,13 @@ itself, or re-host an orphaned room. v1 keeps affinity simple.
 
 ## Database Schema (Prisma)
 
-| Model | Key Fields |
-|-------|------------|
-| `User` | `id`, `name`, `email`, `passwordHash`, `avatarUrl`, `createdAt`, `updatedAt` |
-| `GameRoom` | `id`, `name`, `gameType`, `maxPlayers`, `status`, `settings`, `hostId`, `createdAt`, `startedAt`, `endedAt` |
-| `GameParticipant` | `id`, `gameRoomId`, `userId`, `seatPosition`, `score`, `status`, `joinedAt` |
-| `GameEvent` | `id`, `gameRoomId`, `sequenceNumber`, `eventType`, `payload`, `playerId`, `createdAt` |
-| `GameStateSnapshot` | `id`, `gameRoomId`, `sequenceNumber`, `state`, `createdAt` |
+| Model               | Key Fields                                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `User`              | `id`, `name`, `email`, `passwordHash`, `avatarUrl`, `createdAt`, `updatedAt`                                |
+| `GameRoom`          | `id`, `name`, `gameType`, `maxPlayers`, `status`, `settings`, `hostId`, `createdAt`, `startedAt`, `endedAt` |
+| `GameParticipant`   | `id`, `gameRoomId`, `userId`, `seatPosition`, `score`, `status`, `joinedAt`                                 |
+| `GameEvent`         | `id`, `gameRoomId`, `sequenceNumber`, `eventType`, `payload`, `playerId`, `createdAt`                       |
+| `GameStateSnapshot` | `id`, `gameRoomId`, `sequenceNumber`, `state`, `createdAt`                                                  |
 
 Indexes: `(gameRoomId, sequenceNumber)` on events/snapshots; `(gameRoomId, seatPosition)` on participants.
 
@@ -96,12 +96,14 @@ Auth: email/password (bcrypt). No OAuth v1.
 ## Engines
 
 Separate processes per game type (`packages/engines/*` or standalone services). Common interface:
+
 ```
 createInitialState(settings) → state
 applyAction(state, seat, action) → { events, state, gameOver, result }
 legalActions(state, seat) → action[]
 chooseBotAction(state, seat) → action
 ```
+
 Gateway loads engine by `gameType`, runs it in-process (Node) or calls out via HTTP/Redis queue. Engine never writes DB — emits events, gateway persists.
 
 ## What is deliberately NOT here

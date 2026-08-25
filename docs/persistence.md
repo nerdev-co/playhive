@@ -72,12 +72,12 @@ flush interval — 1s or 50 events, whichever first).
 
 ## Redis
 
-| Key                     | Type   | Purpose                                        |
-|-------------------------|--------|------------------------------------------------|
-| `presence:{playerId}`   | string | JSON `{ status, roomId }`; TTL 90s, refreshed by heartbeat. |
-| `queue:{game}`          | zset   | Matchmaking: member = playerId, score = enqueue ms. |
-| `dedup:{playerId}`      | zset   | Recent `requestId`s (score = time); prune > 5 min. |
-| `room:{roomId}:gateway` | string | Owning gateway host for a room; reconnect affinity. TTL while room lives. |
+| Key                         | Type   | Purpose                                                                                                                                             |
+| --------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `presence:{playerId}`       | string | JSON `{ status, roomId }`; TTL 90s, refreshed by heartbeat.                                                                                         |
+| `queue:{game}`              | zset   | Matchmaking: member = playerId, score = enqueue ms.                                                                                                 |
+| `dedup:{playerId}`          | zset   | Recent `requestId`s (score = time); prune > 5 min.                                                                                                  |
+| `room:{roomId}:gateway`     | string | Owning gateway host for a room; reconnect affinity. TTL while room lives.                                                                           |
 | `player:{playerId}:gateway` | string | Owning gateway for a player's current room; lets a reconnecting client find its room after a fresh HTTP bootstrap. TTL 90s, refreshed by heartbeat. |
 
 - **Presence** — tells the lobby who's online; also backs the disconnect
