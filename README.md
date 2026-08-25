@@ -1,8 +1,5 @@
 # PlayMesh
 
-> **Hand-coded.** This project is written by hand, purely by hand — docs are the
-> spec, code follows them line by line. No generated code, no scaffolding tools.
-
 **Real-Time Multiplayer Game**
 
 - Features: Real-time communication between players, game state synchronization, leaderboard.
@@ -10,13 +7,10 @@
 - Description: Develop a multiplayer game website where players can compete in real-time. Use WebRTC for player communication and state synchronization.
 - Game engines, RTC, Server state management, Distributing via APKs, Operational — Figuring out licenses: `ludo.js` is GPL-class (copyleft on distribution, relevant to APK shipping); our chess implementation is self-written; reference repos are MIT-class. Decision due before Phase 7 — see `roadmap.md`.
 - Example:
-- Ludo app where you can also bet, connect over webrtc like a video call, have a user auth and profile, can see your history
-    -[lib-ludo.js](https://github.com/nerdev-org/ludo.js/)
+- Ludo app where you can also bet, connect over webrtc like a video call, have a user auth and profile, can see your history; [lib-ludo.js](https://github.com/nerdev-org/ludo.js/)
 - [Chess app](https://youtu.be/vSJsz7tNuyU?si=O8NQ_VacYKzxbPWN) with onCall game, user auth, and collect user stats similar to chess.com, [impl](https://github.com/code100x/chess/tree/main)
 
-
-    - [lib-chess.js](https://github.com/NalinDalal/chess.js) : our own implementation
-    
+  - [lib-chess.js](https://github.com/NalinDalal/chess.js) : our own implementation
 
 - Snake ladder: [be](https://github.com/shrinjoy979/multiplayer-snake-and-ladder-game-backend/tree/main), [fe](https://github.com/shrinjoy979/multiplayer-snake-and-ladder-game-frontend)
 
@@ -27,7 +21,7 @@
 [Tic-Tac-Toe](https://youtu.be/YUgUC8knm-I?si=XRrs616gEp1y-al6)
 you may use [this also](https://github.com/NalinDalal/scalable-stateful-app)
 
----------
+---
 
 ## How Packages Will Be Utilized
 
@@ -89,7 +83,7 @@ Usage in a room session (the gateway holds one engine instance per active
 room; on `GAME_ACTION` it validates seat/turn, applies, and broadcasts the
 produced events):
 
-```ts
+````ts
 // pseudocode — one session per room in the gateway
 class ChessSession {
   engine: GameEngine; // created via the engine registry
@@ -108,9 +102,10 @@ The web app (`apps/web/`) also declares the workspace dependency:
     "@playmesh/chess": "workspace:*"
   }
 }
-```
+````
 
 Used for:
+
 - Rendering the board from `GAME_STATE` FEN
 - Highlighting legal moves locally (`engine.legalMoves(square)`)
 - Optimistic UI pre-validation (server is still the authority)
@@ -120,13 +115,6 @@ const engine = new Chess(serverFEN);
 const moves = engine.moves({ square: fromSquare, verbose: true });
 // pass moves to UI layer for highlight rendering
 ```
-
-### 4. Turborepo Orchestrates It
-
-Running `turbo run build` at the root:
-1. Builds `packages/engines/chess` first (declared dependency)
-2. Then builds `apps/server` and `apps/web` (which depend on it)
-3. Runs `dev` in parallel across all workspaces
 
 ### 5. Shared Types (Cross-Cutting)
 
@@ -138,53 +126,13 @@ export type { Move, FEN, GameState, GameResult };
 
 The protocol package (`packages/protocol/`) can import these so `GAME_ACTION` and `GAME_STATE` schemas stay in sync with what the engine actually produces/consumes — no duplicated type definitions.
 
-## Tooling & Agent Skills
-
-### Package manager pin (`devEngines`)
-
-`package.json` pins the dev toolchain to **Bun 1.3.11** via `devEngines`:
-
-```json
-"devEngines": {
-  "packageManager": { "name": "bun", "version": "1.3.11" }
-}
-```
-
-What this does:
-- Guarantees every contributor (human or AI agent) uses the same package
-  manager/version — installs, lockfile (`bun.lock`), and scripts behave identically.
-- Modern npm (≥11) **refuses to run `npx` inside this project** when it
-  detects the pin (`EBADDEVENGINES: Invalid name "bun" does not match "npm"`).
-
-That makes `npx` unusable here by design — use `bunx` instead (bun does not
-enforce `devEngines`, and it's the pinned manager anyway):
-
-```bash
-bunx github:NalinDalal/skillset install --scope project                 # all skills
-bunx github:NalinDalal/skillset install --skill taste-skill --skill impeccable --scope project
-bunx github:NalinDalal/skillset list                                    # preview
-bunx github:NalinDalal/skillset install --undo                          # remove installed skills
-```
-
-This installs agent skills into `./.claude/skills`, `./.opencode/skills`,
-`./.cursor/skills`, `./.agents/skills`, `./.gemini/skills` (whichever
-directories are picked up by the agent harnesses you run in this repo).
-Restart/reload your agent after installing — skills auto-load from those
-folders when a matching task comes up (no manual paste-in of `.md` files).
-
-> Want `npx` back? Remove the `devEngines` block (or loosen it to
-> `"runtime": { "name": "node", "version": ">=18" }`), but since this repo is
-> bun-first, standardizing on `bunx` is the intended path.
-
 ---
 
 ## Summary
 
-| Layer | Consumes `@playmesh/chess` | Purpose |
-|-------|---------------------------|---------|
-| `packages/engines/chess` | — | Defines and exports the engine |
-| `apps/ws-gateway` | `workspace:*` | Authoritative validation, state, bot AI |
-| `apps/web` | `workspace:*` | Rendering, move preview, UX validation |
-| `packages/protocol` | `workspace:*` | Types for message schemas |
-
-
+| Layer                    | Consumes `@playmesh/chess` | Purpose                                 |
+| ------------------------ | -------------------------- | --------------------------------------- |
+| `packages/engines/chess` | —                          | Defines and exports the engine          |
+| `apps/ws-gateway`        | `workspace:*`              | Authoritative validation, state, bot AI |
+| `apps/web`               | `workspace:*`              | Rendering, move preview, UX validation  |
+| `packages/protocol`      | `workspace:*`              | Types for message schemas               |
