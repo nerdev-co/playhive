@@ -1,5 +1,6 @@
 {
   "name": "@repo/database",
+  "type": "module",
   "version": "0.0.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -11,15 +12,20 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "lint": "eslint --max-warnings 0",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "contract:emit": "prisma contract emit"
   },
   "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
     "@prisma/client": "^7.10.0",
+    "@prisma/orm-postgres": "^8.0.0-rc.7",
     "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
     "ioredis": "^5.4.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@prisma/cli-engine": "0.2.3",
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/bcryptjs": "^3.0.0",

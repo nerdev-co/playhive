@@ -1,0 +1,106 @@
+// use prisma-next
+
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  displayName   String
+  email         String?   @unique
+  passwordHash  String?
+  avatar        String?
+  isGuest       Boolean   @default(false)
+  createdAt     TimestamptzString  @default(now())
+
+  participants  GameParticipant[]
+  gameEvents    GameEvent[]
+  hostedRooms   GameRoom[]          @relation("RoomHost")
+}
+
+model GameRoom {
+  id          String   @id @default(uuid())
+  name        String
+  gameType    String
+  maxPlayers  Int
+  status      RoomStatus @default(WAITING)
+  settings    Json
+  hostId      String
+  createdAt   TimestamptzString @default(now())
+  startedAt   TimestamptzString?
+  endedAt     TimestamptzString?
+
+  host        User      @relation("RoomHost", fields: [hostId], references: [id])
+  participants GameParticipant[]
+  match       Match?    @relation("RoomMatch")
+}
+
+enum RoomStatus {
+  WAITING
+  STARTING
+  IN_PROGRESS
+  FINISHED
+  ARCHIVED
+}
+
+model GameParticipant {
+  id            String   @id @default(uuid())
+  gameRoomId    String
+  userId        String
+  seatPosition  Int
+  score         Int      @default(0)
+  status        ParticipantStatus @default(ACTIVE)
+  joinedAt      TimestamptzString @default(now())
+
+  gameRoom      GameRoom @relation(fields: [gameRoomId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameRoomId, seatPosition])
+  @@unique([gameRoomId, userId])
+  @@index([gameRoomId, seatPosition])
+}
+
+enum ParticipantStatus {
+  ACTIVE
+  LEFT
+  KICKED
+  DISCONNECTED
+  FORFEITED
+}
+
+model Match {
+  id            String   @id @default(uuid())
+  roomId        String   @unique
+  game          String
+  status        MatchStatus @default(IN_PROGRESS)
+  seats         Json
+  result        Json?
+  config        Json
+  finalState    Json?
+  startedAt     TimestamptzString?
+  finishedAt    TimestamptzString?
+
+  room          GameRoom  @relation("RoomMatch", fields: [roomId], references: [id], onDelete: Cascade)
+  events        GameEvent[]
+
+  @@index([game, status])
+}
+
+enum MatchStatus {
+  IN_PROGRESS
+  FINISHED
+  ARCHIVED
+}
+
+model GameEvent {
+  id          BigInt   @id @default(autoincrement())
+  matchId     String
+  version     BigInt
+  seat        Int?
+  event       Json
+  playerId    String?
+  createdAt   TimestamptzString @default(now())
+
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player      User?    @relation(fields: [playerId], references: [id])
+
+  @@unique([matchId, version])
+  @@index([matchId, version])
+}

@@ -5,7 +5,13 @@
     "rootDir": "src",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "types": [
+      "node"
+    ]
   },
   "include": ["src/**/*", "prisma/seed.ts"],
   "exclude": ["node_modules", "dist"]
