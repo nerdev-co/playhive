@@ -1,4 +1,4 @@
-# PlayMesh
+# Playhive
 
 **Real-Time Multiplayer Game**
 
