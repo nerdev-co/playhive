@@ -10,7 +10,7 @@
         "check-types": "tsc --noEmit"
     },
     "dependencies": {
-        "@repo/database": "workspace:*",
+        "@playhive/db": "workspace:*",
         "protocol": "workspace:*",
         "ws": "^8.21.3"
     },
