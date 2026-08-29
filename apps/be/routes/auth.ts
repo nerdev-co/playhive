@@ -1,4 +1,4 @@
-import { signupSchema, signinSchema } from "../schemas";
+import { signupSchema, signinSchema, profileSchema } from "../schemas";
 import {
     hashPassword,
     verifyPassword,
@@ -7,6 +7,7 @@ import {
 } from "../auth";
 import { createResponse, createError } from "../utils";
 import { getDbInstance } from "@playhive/db";
+import { WS_GATEWAY_URL } from "../config";
 
 const db = getDbInstance();
 
@@ -54,6 +55,7 @@ export async function handleSignup(request: Request): Promise<Response> {
                 isGuest: user.isGuest,
             },
             token,
+            gatewayUrl: WS_GATEWAY_URL,
         },
         201,
     );
@@ -90,6 +92,7 @@ export async function handleSignin(request: Request): Promise<Response> {
             isGuest: user.isGuest,
         },
         token,
+        gatewayUrl: WS_GATEWAY_URL,
     });
 }
 
@@ -99,4 +102,26 @@ export async function handleMe(request: Request): Promise<Response> {
         return createError("Unauthorized", 401);
     }
     return createResponse({ user });
+}
+
+export async function handleProfile(request: Request): Promise<Response> {
+    const user = await getCurrentUser(request);
+    if (!user) {
+        return createError("Unauthorized", 401);
+    }
+
+    const body = await request.json();
+    const parsed = profileSchema.safeParse(body);
+    if (!parsed.success) {
+        return createError("Invalid input", 400);
+    }
+
+    const { displayName, avatar } = parsed.data;
+
+    const updatedUser = await db.orm.public.User.where({ id: user.id }).update({
+        displayName: displayName ?? user.displayName,
+        avatar: avatar ?? user.avatar,
+    });
+
+    return createResponse({ user: updatedUser });
 }

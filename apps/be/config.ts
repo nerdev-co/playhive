@@ -11,3 +11,5 @@ export const JWT_AUDIENCE = "playhive-client";
 export const TOKEN_EXPIRY = "7d";
 
 export const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+
+export const WS_GATEWAY_URL = process.env.WS_GATEWAY_URL ?? "ws://localhost:3002";

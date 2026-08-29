@@ -36,3 +36,8 @@ export const createRoomSchema = z.object({
         })
         .optional(),
 });
+
+export const profileSchema = z.object({
+    displayName: z.string().min(1).max(64).optional(),
+    avatar: z.string().url().optional(),
+});
