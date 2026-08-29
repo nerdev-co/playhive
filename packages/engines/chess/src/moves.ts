@@ -10,13 +10,29 @@ import {
     updateEnPassant,
 } from "./zobrist";
 
-const ORTHOGONAL_DIRS: [number, number][] = [[0, 1], [0, -1], [1, 0], [-1, 0]];
-const DIAGONAL_DIRS: [number, number][] = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
+const ORTHOGONAL_DIRS: [number, number][] = [
+    [0, 1],
+    [0, -1],
+    [1, 0],
+    [-1, 0],
+];
+const DIAGONAL_DIRS: [number, number][] = [
+    [1, 1],
+    [-1, 1],
+    [1, -1],
+    [-1, -1],
+];
 const ALL_DIRS: [number, number][] = [...ORTHOGONAL_DIRS, ...DIAGONAL_DIRS];
 
 const KNIGHT_MOVES: [number, number][] = [
-    [2, 1], [2, -1], [-2, 1], [-2, -1],
-    [1, 2], [1, -2], [-1, 2], [-1, -2],
+    [2, 1],
+    [2, -1],
+    [-2, 1],
+    [-2, -1],
+    [1, 2],
+    [1, -2],
+    [-1, 2],
+    [-1, -2],
 ];
 
 function inBounds(file: number, rank: number): boolean {
@@ -73,7 +89,8 @@ function findKing(
     const kingChar = color === "white" ? "K" : "k";
     for (let rank = 0; rank < 8; rank++) {
         for (let file = 0; file < 8; file++) {
-            if (getBoardPiece(board, file, rank) === kingChar) return [file, rank];
+            if (getBoardPiece(board, file, rank) === kingChar)
+                return [file, rank];
         }
     }
     return null;
@@ -87,48 +104,60 @@ function isSquareAttacked(
 ): boolean {
     const pawnRankOffset = byColor === "white" ? -1 : 1;
     for (const df of [-1, 1]) {
-        const pf = file + df, pr = rank + pawnRankOffset;
+        const pf = file + df,
+            pr = rank + pawnRankOffset;
         if (inBounds(pf, pr)) {
             const p = getBoardPiece(board, pf, pr);
-            if (p && p.toLowerCase() === "p" && isColorPiece(p, byColor)) return true;
+            if (p && p.toLowerCase() === "p" && isColorPiece(p, byColor))
+                return true;
         }
     }
     for (const [df, dr] of KNIGHT_MOVES) {
-        const f = file + df, r = rank + dr;
+        const f = file + df,
+            r = rank + dr;
         if (inBounds(f, r)) {
             const p = getBoardPiece(board, f, r);
-            if (p && p.toLowerCase() === "n" && isColorPiece(p, byColor)) return true;
+            if (p && p.toLowerCase() === "n" && isColorPiece(p, byColor))
+                return true;
         }
     }
     for (const [df, dr] of ALL_DIRS) {
-        const f = file + df, r = rank + dr;
+        const f = file + df,
+            r = rank + dr;
         if (inBounds(f, r)) {
             const p = getBoardPiece(board, f, r);
-            if (p && p.toLowerCase() === "k" && isColorPiece(p, byColor)) return true;
+            if (p && p.toLowerCase() === "k" && isColorPiece(p, byColor))
+                return true;
         }
     }
     for (const [df, dr] of DIAGONAL_DIRS) {
-        let f = file + df, r = rank + dr;
+        let f = file + df,
+            r = rank + dr;
         while (inBounds(f, r)) {
             const p = getBoardPiece(board, f, r);
             if (p) {
                 const type = p.toLowerCase();
-                if (isColorPiece(p, byColor) && (type === "b" || type === "q")) return true;
+                if (isColorPiece(p, byColor) && (type === "b" || type === "q"))
+                    return true;
                 break;
             }
-            f += df; r += dr;
+            f += df;
+            r += dr;
         }
     }
     for (const [df, dr] of ORTHOGONAL_DIRS) {
-        let f = file + df, r = rank + dr;
+        let f = file + df,
+            r = rank + dr;
         while (inBounds(f, r)) {
             const p = getBoardPiece(board, f, r);
             if (p) {
                 const type = p.toLowerCase();
-                if (isColorPiece(p, byColor) && (type === "r" || type === "q")) return true;
+                if (isColorPiece(p, byColor) && (type === "r" || type === "q"))
+                    return true;
                 break;
             }
-            f += df; r += dr;
+            f += df;
+            r += dr;
         }
     }
     return false;
@@ -159,15 +188,23 @@ interface CheckInfo {
     pinned: Map<string, [number, number]>;
 }
 
-function computeCheckInfo(board: (string | null)[][], color: "white" | "black"): CheckInfo {
-    const info: CheckInfo = { checkers: [], blockSquares: new Set(), pinned: new Map() };
+function computeCheckInfo(
+    board: (string | null)[][],
+    color: "white" | "black",
+): CheckInfo {
+    const info: CheckInfo = {
+        checkers: [],
+        blockSquares: new Set(),
+        pinned: new Map(),
+    };
     const kingPos = findKing(board, color);
     if (!kingPos) return info;
     const [kf, kr] = kingPos;
     const opponent = color === "white" ? "black" : "white";
 
     for (const [df, dr] of KNIGHT_MOVES) {
-        const f = kf + df, r = kr + dr;
+        const f = kf + df,
+            r = kr + dr;
         if (inBounds(f, r)) {
             const p = getBoardPiece(board, f, r);
             if (p && p.toLowerCase() === "n" && isColorPiece(p, opponent)) {
@@ -178,7 +215,8 @@ function computeCheckInfo(board: (string | null)[][], color: "white" | "black"):
 
     const pawnRankOffset = color === "white" ? 1 : -1;
     for (const df of [-1, 1]) {
-        const f = kf + df, r = kr + pawnRankOffset;
+        const f = kf + df,
+            r = kr + pawnRankOffset;
         if (inBounds(f, r)) {
             const p = getBoardPiece(board, f, r);
             if (p && p.toLowerCase() === "p" && isColorPiece(p, opponent)) {
@@ -194,7 +232,8 @@ function computeCheckInfo(board: (string | null)[][], color: "white" | "black"):
 
     for (const { dir, sliders } of rayTypes) {
         const [df, dr] = dir;
-        let f = kf + df, r = kr + dr;
+        let f = kf + df,
+            r = kr + dr;
         let first: { f: number; r: number; piece: string } | null = null;
         let second: { f: number; r: number; piece: string } | null = null;
 
@@ -202,20 +241,26 @@ function computeCheckInfo(board: (string | null)[][], color: "white" | "black"):
             const p = getBoardPiece(board, f, r);
             if (p) {
                 if (!first) first = { f, r, piece: p };
-                else { second = { f, r, piece: p }; break; }
+                else {
+                    second = { f, r, piece: p };
+                    break;
+                }
             }
-            f += df; r += dr;
+            f += df;
+            r += dr;
         }
 
         if (!first) continue;
         const firstIsEnemySlider =
-            isColorPiece(first.piece, opponent) && sliders.includes(first.piece.toLowerCase());
+            isColorPiece(first.piece, opponent) &&
+            sliders.includes(first.piece.toLowerCase());
 
         if (firstIsEnemySlider) {
             info.checkers.push({ pos: [first.f, first.r], slidingDir: dir });
         } else if (isColorPiece(first.piece, color) && second) {
             const secondIsEnemySlider =
-                isColorPiece(second.piece, opponent) && sliders.includes(second.piece.toLowerCase());
+                isColorPiece(second.piece, opponent) &&
+                sliders.includes(second.piece.toLowerCase());
             if (secondIsEnemySlider) {
                 info.pinned.set(squareKey(first.f, first.r), dir);
             }
@@ -225,10 +270,12 @@ function computeCheckInfo(board: (string | null)[][], color: "white" | "black"):
     if (info.checkers.length === 1) {
         const c = info.checkers[0]!;
         if (c.slidingDir) {
-            let f = kf + c.slidingDir[0], r = kr + c.slidingDir[1];
+            let f = kf + c.slidingDir[0],
+                r = kr + c.slidingDir[1];
             while (f !== c.pos[0] || r !== c.pos[1]) {
                 info.blockSquares.add(squareKey(f, r));
-                f += c.slidingDir[0]; r += c.slidingDir[1];
+                f += c.slidingDir[0];
+                r += c.slidingDir[1];
             }
         }
         info.blockSquares.add(squareKey(c.pos[0], c.pos[1]));
@@ -281,7 +328,8 @@ function slidingMoves(
 ): ChessMove[] {
     const moves: ChessMove[] = [];
     for (const [df, dr] of dirs) {
-        let f = file + df, r = rank + dr;
+        let f = file + df,
+            r = rank + dr;
         while (inBounds(f, r)) {
             const target = getBoardPiece(board, f, r);
             const from = coordsToSquare(file, rank);
@@ -289,12 +337,15 @@ function slidingMoves(
             if (target === null) {
                 moves.push({ from, to });
             } else {
-                if (isColorPiece(target, color === "white" ? "black" : "white")) {
+                if (
+                    isColorPiece(target, color === "white" ? "black" : "white")
+                ) {
                     moves.push({ from, to, capture: true });
                 }
                 break;
             }
-            f += df; r += dr;
+            f += df;
+            r += dr;
         }
     }
     return moves;
@@ -339,21 +390,34 @@ function pawnMoves(
     }
 
     for (const df of [-1, 1]) {
-        const capFile = file + df, capRank = rank + dir;
+        const capFile = file + df,
+            capRank = rank + dir;
         if (inBounds(capFile, capRank)) {
             const target = getBoardPiece(board, capFile, capRank);
-            if (target !== null && isColorPiece(target, color === "white" ? "black" : "white")) {
+            if (
+                target !== null &&
+                isColorPiece(target, color === "white" ? "black" : "white")
+            ) {
                 const to = coordsToSquare(capFile, capRank);
                 if (capRank === promotionRank) {
                     for (const promo of ["q", "r", "b", "n"] as const) {
-                        moves.push({ from, to, promotion: promo, capture: true });
+                        moves.push({
+                            from,
+                            to,
+                            promotion: promo,
+                            capture: true,
+                        });
                     }
                 } else {
                     moves.push({ from, to, capture: true });
                 }
             }
             if (enPassant && coordsToSquare(capFile, capRank) === enPassant) {
-                moves.push({ from, to: coordsToSquare(capFile, capRank), capture: true });
+                moves.push({
+                    from,
+                    to: coordsToSquare(capFile, capRank),
+                    capture: true,
+                });
             }
         }
     }
@@ -370,11 +434,19 @@ function knightMoves(
     const moves: ChessMove[] = [];
     const from = coordsToSquare(file, rank);
     for (const [df, dr] of KNIGHT_MOVES) {
-        const f = file + df, r = rank + dr;
+        const f = file + df,
+            r = rank + dr;
         if (inBounds(f, r)) {
             const target = getBoardPiece(board, f, r);
-            if (target === null || isColorPiece(target, color === "white" ? "black" : "white")) {
-                moves.push({ from, to: coordsToSquare(f, r), capture: target !== null });
+            if (
+                target === null ||
+                isColorPiece(target, color === "white" ? "black" : "white")
+            ) {
+                moves.push({
+                    from,
+                    to: coordsToSquare(f, r),
+                    capture: target !== null,
+                });
             }
         }
     }
@@ -393,17 +465,26 @@ function kingMoves(
     const opponent = color === "white" ? "black" : "white";
 
     for (const [df, dr] of ALL_DIRS) {
-        const f = file + df, r = rank + dr;
+        const f = file + df,
+            r = rank + dr;
         if (inBounds(f, r)) {
             const target = getBoardPiece(board, f, r);
             if (target === null || isColorPiece(target, opponent)) {
-                moves.push({ from, to: coordsToSquare(f, r), capture: target !== null });
+                moves.push({
+                    from,
+                    to: coordsToSquare(f, r),
+                    capture: target !== null,
+                });
             }
         }
     }
 
     const kingRank = color === "white" ? 0 : 7;
-    if (rank === kingRank && file === 4 && !isSquareAttacked(board, file, rank, opponent)) {
+    if (
+        rank === kingRank &&
+        file === 4 &&
+        !isSquareAttacked(board, file, rank, opponent)
+    ) {
         const rights = color === "white" ? castling.white : castling.black;
         if (
             rights.kingside &&
@@ -412,7 +493,11 @@ function kingMoves(
             !isSquareAttacked(board, 5, kingRank, opponent) &&
             !isSquareAttacked(board, 6, kingRank, opponent)
         ) {
-            moves.push({ from, to: coordsToSquare(6, kingRank), capture: false });
+            moves.push({
+                from,
+                to: coordsToSquare(6, kingRank),
+                capture: false,
+            });
         }
         if (
             rights.queenside &&
@@ -422,7 +507,11 @@ function kingMoves(
             !isSquareAttacked(board, 3, kingRank, opponent) &&
             !isSquareAttacked(board, 2, kingRank, opponent)
         ) {
-            moves.push({ from, to: coordsToSquare(2, kingRank), capture: false });
+            moves.push({
+                from,
+                to: coordsToSquare(2, kingRank),
+                capture: false,
+            });
         }
     }
 
@@ -452,12 +541,42 @@ function generateLegalMovesForBoard(
             let pseudoMoves: ChessMove[] = [];
 
             switch (pieceType) {
-                case "p": pseudoMoves = pawnMoves(board, file, rank, turn, enPassant); break;
-                case "n": pseudoMoves = knightMoves(board, file, rank, turn); break;
-                case "b": pseudoMoves = slidingMoves(board, file, rank, DIAGONAL_DIRS, turn); break;
-                case "r": pseudoMoves = slidingMoves(board, file, rank, ORTHOGONAL_DIRS, turn); break;
-                case "q": pseudoMoves = slidingMoves(board, file, rank, ALL_DIRS, turn); break;
-                case "k": pseudoMoves = kingMoves(board, file, rank, turn, castling); break;
+                case "p":
+                    pseudoMoves = pawnMoves(board, file, rank, turn, enPassant);
+                    break;
+                case "n":
+                    pseudoMoves = knightMoves(board, file, rank, turn);
+                    break;
+                case "b":
+                    pseudoMoves = slidingMoves(
+                        board,
+                        file,
+                        rank,
+                        DIAGONAL_DIRS,
+                        turn,
+                    );
+                    break;
+                case "r":
+                    pseudoMoves = slidingMoves(
+                        board,
+                        file,
+                        rank,
+                        ORTHOGONAL_DIRS,
+                        turn,
+                    );
+                    break;
+                case "q":
+                    pseudoMoves = slidingMoves(
+                        board,
+                        file,
+                        rank,
+                        ALL_DIRS,
+                        turn,
+                    );
+                    break;
+                case "k":
+                    pseudoMoves = kingMoves(board, file, rank, turn, castling);
+                    break;
             }
 
             let legalMoves: ChessMove[];
@@ -476,23 +595,29 @@ function generateLegalMovesForBoard(
                     const [tf, tr] = squareToCoords(move.to);
 
                     if (pinDir) {
-                        const mdf = tf - file, mdr = tr - rank;
+                        const mdf = tf - file,
+                            mdr = tr - rank;
                         const cross = mdf * pinDir[1] - mdr * pinDir[0];
                         if (cross !== 0) return false;
                     }
 
-                    const isEnPassant = pieceType === "p" && move.to === enPassant;
+                    const isEnPassant =
+                        pieceType === "p" && move.to === enPassant;
 
                     if (info.checkers.length === 1) {
                         if (isEnPassant) {
                             const capRank = turn === "white" ? tr - 1 : tr + 1;
-                            if (!info.blockSquares.has(squareKey(tf, capRank))) return false;
+                            if (!info.blockSquares.has(squareKey(tf, capRank)))
+                                return false;
                         } else if (!info.blockSquares.has(squareKey(tf, tr))) {
                             return false;
                         }
                     }
 
-                    if (isEnPassant && enPassantExposesCheck(board, file, rank, tf, tr, turn)) {
+                    if (
+                        isEnPassant &&
+                        enPassantExposesCheck(board, file, rank, tf, tr, turn)
+                    ) {
                         return false;
                     }
 
@@ -501,7 +626,10 @@ function generateLegalMovesForBoard(
             }
 
             if (legalMoves.length > 0) {
-                allMoves.push({ piece: coordsToSquare(file, rank), moves: legalMoves });
+                allMoves.push({
+                    piece: coordsToSquare(file, rank),
+                    moves: legalMoves,
+                });
             }
         }
     }
@@ -509,16 +637,30 @@ function generateLegalMovesForBoard(
     return allMoves;
 }
 
-export function generateMoves(state: EngineState): { piece: string; moves: ChessMove[] }[] {
+export function generateMoves(
+    state: EngineState,
+): { piece: string; moves: ChessMove[] }[] {
     const board = fenToBoard(state.fen);
-    return generateLegalMovesForBoard(board, state.turn, state.castling, state.enPassant);
+    return generateLegalMovesForBoard(
+        board,
+        state.turn,
+        state.castling,
+        state.enPassant,
+    );
 }
 
 /** Search-oriented move generation: takes a SearchState directly, so a
  *  search loop calling this at every node isn't re-parsing a FEN string
  *  each time — see makeMoveInPlace/unmakeMove below. */
-export function generateLegalMoves(state: Position): { piece: string; moves: ChessMove[] }[] {
-    return generateLegalMovesForBoard(state.board, state.turn, state.castling, state.enPassant);
+export function generateLegalMoves(
+    state: Position,
+): { piece: string; moves: ChessMove[] }[] {
+    return generateLegalMovesForBoard(
+        state.board,
+        state.turn,
+        state.castling,
+        state.enPassant,
+    );
 }
 
 /**
@@ -547,7 +689,12 @@ export function toPosition(state: EngineState): Position {
         enPassant: state.enPassant,
         halfmoveClock: state.halfmoveClock,
         fullmoveNumber: state.fullmoveNumber,
-        zobristHash: computeHash(board, state.turn, state.castling, state.enPassant),
+        zobristHash: computeHash(
+            board,
+            state.turn,
+            state.castling,
+            state.enPassant,
+        ),
     };
 }
 
@@ -561,7 +708,11 @@ export interface UndoInfo {
     capturedPiece: string | null;
     capturedSquare: [number, number];
     isEnPassant: boolean;
-    castleRookMove: { from: [number, number]; to: [number, number]; piece: string } | null;
+    castleRookMove: {
+        from: [number, number];
+        to: [number, number];
+        piece: string;
+    } | null;
     prevCastling: EngineState["castling"];
     prevEnPassant: string | null;
     prevHalfmoveClock: number;
@@ -584,7 +735,8 @@ export function makeMoveInPlace(state: Position, move: ChessMove): UndoInfo {
     const movedPiece = getBoardPiece(board, fromFile, fromRank);
     if (!movedPiece) throw new Error("No piece at source square");
 
-    const isEnPassant = movedPiece.toLowerCase() === "p" && move.to === state.enPassant;
+    const isEnPassant =
+        movedPiece.toLowerCase() === "p" && move.to === state.enPassant;
     let capturedSquare: [number, number] = [toFile, toRank];
     let capturedPiece: string | null;
 
@@ -610,7 +762,8 @@ export function makeMoveInPlace(state: Position, move: ChessMove): UndoInfo {
     // Move piece: remove from source, add at destination
     setBoardPiece(board, fromFile, fromRank, null);
     if (move.promotion) {
-        const promoPiece = mover === "white" ? move.promotion.toUpperCase() : move.promotion;
+        const promoPiece =
+            mover === "white" ? move.promotion.toUpperCase() : move.promotion;
         setBoardPiece(board, toFile, toRank, promoPiece);
         hash = removePiece(hash, movedPiece, fromFile, fromRank);
         hash = addPiece(hash, promoPiece, toFile, toRank);
@@ -632,7 +785,11 @@ export function makeMoveInPlace(state: Position, move: ChessMove): UndoInfo {
                 setBoardPiece(board, 7, kingRank, null);
                 setBoardPiece(board, 5, kingRank, rookPiece);
                 hash = movePiece(hash, rookPiece, 7, kingRank, 5, kingRank);
-                castleRookMove = { from: [7, kingRank], to: [5, kingRank], piece: rookPiece };
+                castleRookMove = {
+                    from: [7, kingRank],
+                    to: [5, kingRank],
+                    piece: rookPiece,
+                };
             }
         } else if (move.to.charCodeAt(0) === 99) {
             const rookPiece = getBoardPiece(board, 0, kingRank);
@@ -640,16 +797,23 @@ export function makeMoveInPlace(state: Position, move: ChessMove): UndoInfo {
                 setBoardPiece(board, 0, kingRank, null);
                 setBoardPiece(board, 3, kingRank, rookPiece);
                 hash = movePiece(hash, rookPiece, 0, kingRank, 3, kingRank);
-                castleRookMove = { from: [0, kingRank], to: [3, kingRank], piece: rookPiece };
+                castleRookMove = {
+                    from: [0, kingRank],
+                    to: [3, kingRank],
+                    piece: rookPiece,
+                };
             }
         }
     }
 
-    const prevCastling: EngineState["castling"] = JSON.parse(JSON.stringify(state.castling));
+    const prevCastling: EngineState["castling"] = JSON.parse(
+        JSON.stringify(state.castling),
+    );
     const pieceLower = movedPiece.toLowerCase();
 
     if (pieceLower === "k") {
-        if (mover === "white") state.castling.white = { kingside: false, queenside: false };
+        if (mover === "white")
+            state.castling.white = { kingside: false, queenside: false };
         else state.castling.black = { kingside: false, queenside: false };
     }
     if (pieceLower === "r") {
@@ -687,7 +851,8 @@ export function makeMoveInPlace(state: Position, move: ChessMove): UndoInfo {
 
     const prevHalfmoveClock = state.halfmoveClock;
     const isCapture = capturedPiece !== null;
-    state.halfmoveClock = pieceLower === "p" || isCapture ? 0 : state.halfmoveClock + 1;
+    state.halfmoveClock =
+        pieceLower === "p" || isCapture ? 0 : state.halfmoveClock + 1;
 
     const prevFullmoveNumber = state.fullmoveNumber;
     if (mover === "black") state.fullmoveNumber += 1;
@@ -698,8 +863,17 @@ export function makeMoveInPlace(state: Position, move: ChessMove): UndoInfo {
     state.zobristHash = hash;
 
     return {
-        move, movedPiece, capturedPiece, capturedSquare, isEnPassant, castleRookMove,
-        prevCastling, prevEnPassant, prevHalfmoveClock, prevFullmoveNumber, prevTurn,
+        move,
+        movedPiece,
+        capturedPiece,
+        capturedSquare,
+        isEnPassant,
+        castleRookMove,
+        prevCastling,
+        prevEnPassant,
+        prevHalfmoveClock,
+        prevFullmoveNumber,
+        prevTurn,
         prevZobristHash,
     };
 }
@@ -716,7 +890,12 @@ export function unmakeMove(state: Position, undo: UndoInfo): void {
     setBoardPiece(board, fromFile, fromRank, undo.movedPiece);
 
     if (undo.capturedPiece) {
-        setBoardPiece(board, undo.capturedSquare[0], undo.capturedSquare[1], undo.capturedPiece);
+        setBoardPiece(
+            board,
+            undo.capturedSquare[0],
+            undo.capturedSquare[1],
+            undo.capturedPiece,
+        );
     }
 
     if (undo.castleRookMove) {
