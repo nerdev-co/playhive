@@ -1,12 +1,12 @@
 /**
  * Chess Engine Types
- * 
+ *
  * Type definitions for the chess engine implementing the standard Engine interface
  * compatible with the ws-gateway game engine abstraction.
- * 
+ *
  * State representation uses FEN (Forsyth-Edwards Notation) as the canonical format.
  * Moves use algebraic notation (e.g., "e2e4", "e7e8q" for promotion).
- * 
+ *
  * @package @playhive/chess-engine
  */
 
@@ -34,7 +34,7 @@ export interface ChessSquare {
 
 /**
  * Chess move in algebraic notation.
- * 
+ *
  * @example
  * ```ts
  * { from: "e2", to: "e4" }           // Normal move
@@ -96,9 +96,9 @@ export interface ChessOptions {
 
 /**
  * Complete engine state representing a chess position.
- * 
+ *
  * FEN is the canonical representation; other fields are derived for convenience.
- * 
+ *
  * @example
  * ```ts
  * const state = createInitialState();
@@ -163,11 +163,11 @@ export interface EngineResult {
 /**
  * Converts an algebraic square (e.g., "e4") to a 0-63 board index.
  * Rank 1 (white's back rank) = index 0-7, Rank 8 = index 56-63.
- * 
+ *
  * @param square - Algebraic square notation (e.g., "e4")
  * @returns 0-63 index (rank * 8 + file)
  * @throws {Error} If square string is malformed
- * 
+ *
  * @example
  * squareToIndex("e4") // returns 28 (rank 3 * 8 + file 4)
  * squareToIndex("a1") // returns 0
@@ -186,10 +186,10 @@ export function squareToIndex(square: string): number {
 
 /**
  * Converts a 0-63 board index to algebraic square notation.
- * 
+ *
  * @param index - Board index (0-63)
  * @returns Algebraic square (e.g., "e4")
- * 
+ *
  * @example
  * indexToSquare(28) // "e4"
  * indexToSquare(0)  // "a1"
