@@ -40,7 +40,7 @@ function squareKey(file: number, rank: number): string {
     return `${file},${rank}`;
 }
 
-function getBoardPiece(
+export function getBoardPiece(
     board: (string | null)[][],
     file: number,
     rank: number,
@@ -143,6 +143,14 @@ export function isInCheck(
     if (!kingPos) return false;
     const opponent = color === "white" ? "black" : "white";
     return isSquareAttacked(board, kingPos[0], kingPos[1], opponent);
+}
+
+/** Check detection for a Position (used in search — avoids FEN re-parsing). */
+export function positionInCheck(position: Position): boolean {
+    const kingPos = findKing(position.board, position.turn);
+    if (!kingPos) return false;
+    const opponent = position.turn === "white" ? "black" : "white";
+    return isSquareAttacked(position.board, kingPos[0], kingPos[1], opponent);
 }
 
 interface CheckInfo {
@@ -509,7 +517,7 @@ export function generateMoves(state: EngineState): { piece: string; moves: Chess
 /** Search-oriented move generation: takes a SearchState directly, so a
  *  search loop calling this at every node isn't re-parsing a FEN string
  *  each time — see makeMoveInPlace/unmakeMove below. */
-export function generateLegalMoves(state: SearchState): { piece: string; moves: ChessMove[] }[] {
+export function generateLegalMoves(state: Position): { piece: string; moves: ChessMove[] }[] {
     return generateLegalMovesForBoard(state.board, state.turn, state.castling, state.enPassant);
 }
 
@@ -520,7 +528,7 @@ export function generateLegalMoves(state: SearchState): { piece: string; moves: 
  * it and reverse the mutation in place for every node, instead of
  * allocating a fresh board array and re-stringifying a FEN at each ply.
  */
-export interface SearchState {
+export interface Position {
     board: (string | null)[][];
     turn: "white" | "black";
     castling: EngineState["castling"];
@@ -530,7 +538,7 @@ export interface SearchState {
     zobristHash: number;
 }
 
-export function toSearchState(state: EngineState): SearchState {
+export function toPosition(state: EngineState): Position {
     const board = fenToBoard(state.fen);
     return {
         board,
@@ -566,7 +574,7 @@ export interface UndoInfo {
  *  reverse it via unmakeMove. Intended for a search loop: call this,
  *  recurse, then always call unmakeMove with the returned UndoInfo before
  *  trying the next candidate move at this node. */
-export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
+export function makeMoveInPlace(state: Position, move: ChessMove): UndoInfo {
     const [fromFile, fromRank] = squareToCoords(move.from);
     const [toFile, toRank] = squareToCoords(move.to);
     const board = state.board;
@@ -699,7 +707,7 @@ export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
 /** Reverses exactly what makeMoveInPlace did, using the UndoInfo it
  *  returned. Must be called with moves undone in strict LIFO order
  *  relative to how they were made (standard for a search stack). */
-export function unmakeMove(state: SearchState, undo: UndoInfo): void {
+export function unmakeMove(state: Position, undo: UndoInfo): void {
     const [fromFile, fromRank] = squareToCoords(undo.move.from);
     const [toFile, toRank] = squareToCoords(undo.move.to);
     const board = state.board;
@@ -729,16 +737,16 @@ export function unmakeMove(state: SearchState, undo: UndoInfo): void {
  *  thin wrapper over the same make/unmake logic search uses, so there's
  *  a single source of truth for move execution. */
 export function makeMove(state: EngineState, move: ChessMove): EngineState {
-    const searchState = toSearchState(state);
-    const undo = makeMoveInPlace(searchState, move);
+    const pos = toPosition(state);
+    const undo = makeMoveInPlace(pos, move);
 
     return {
-        fen: boardToFEN(searchState.board, searchState),
-        turn: searchState.turn,
-        castling: searchState.castling,
-        enPassant: searchState.enPassant,
-        halfmoveClock: searchState.halfmoveClock,
-        fullmoveNumber: searchState.fullmoveNumber,
+        fen: boardToFEN(pos.board, pos),
+        turn: pos.turn,
+        castling: pos.castling,
+        enPassant: pos.enPassant,
+        halfmoveClock: pos.halfmoveClock,
+        fullmoveNumber: pos.fullmoveNumber,
         gameOver: false,
         moveHistory: [
             ...state.moveHistory,
@@ -763,16 +771,16 @@ export function makeMove(state: EngineState, move: ChessMove): EngineState {
  * perft(state, 4) = 197281.
  */
 export function perft(state: EngineState, depth: number): number {
-    return perftFromSearchState(toSearchState(state), depth);
+    return perftFromPosition(toPosition(state), depth);
 }
 
-function perftFromSearchState(state: SearchState, depth: number): number {
+function perftFromPosition(state: Position, depth: number): number {
     if (depth === 0) return 1;
     let nodes = 0;
     for (const { moves } of generateLegalMoves(state)) {
         for (const move of moves) {
             const undo = makeMoveInPlace(state, move);
-            nodes += perftFromSearchState(state, depth - 1);
+            nodes += perftFromPosition(state, depth - 1);
             unmakeMove(state, undo);
         }
     }

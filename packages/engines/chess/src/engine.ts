@@ -1,9 +1,10 @@
 import type { EngineState, ChessMove, ChessEvent, EngineAction, EngineResult, ChessOptions } from "./types";
 import { START_FEN, parseFEN } from "./store";
-import { generateMoves, makeMove, isInCheck } from "./moves";
+import { generateMoves, makeMove, isInCheck, toPosition } from "./moves";
 import { fenToBoard } from "./store";
 import { computeHash } from "./zobrist";
 import { RepetitionTable } from "./repetition";
+import { search } from "./search";
 
 let currentState: EngineState;
 const repetitions = new RepetitionTable();
@@ -63,6 +64,11 @@ export function applyAction(action: EngineAction): EngineResult {
     };
     events.push(moveEvent);
 
+    // Track position for repetition detection
+    const board = fenToBoard(currentState.fen);
+    const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
+    repetitions.add(hash);
+
     if (isInCheck(currentState)) {
         events.push({ type: "check", fen: currentState.fen });
         if (isCheckmate(currentState)) {
@@ -83,18 +89,15 @@ export function applyAction(action: EngineAction): EngineResult {
         const reason = currentState.halfmoveClock >= 100 ? "fifty_move_rule" : "insufficient_material";
         currentState.resultReason = reason;
         events.push({ type: "draw", reason, fen: currentState.fen });
-    } else {
-        // Check threefold repetition
-        const board = fenToBoard(currentState.fen);
-        const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
-        const count = repetitions.add(hash);
-        if (count >= 3) {
-            currentState.gameOver = true;
-            currentState.result = "draw";
-            currentState.resultReason = "threefold_repetition";
-            events.push({ type: "draw", reason: "threefold_repetition", fen: currentState.fen });
-        }
+    } else if (isFivefoldRepetition()) {
+        // Fivefold is automatic under FIDE rules
+        currentState.gameOver = true;
+        currentState.result = "draw";
+        currentState.resultReason = "fivefold_repetition";
+        events.push({ type: "draw", reason: "threefold_repetition", fen: currentState.fen });
     }
+    // Note: threefold repetition is claimable, not automatic.
+    // The UI should call canClaimThreefold() to offer a "Claim Draw" button.
 
     return {
         events,
@@ -109,12 +112,38 @@ export function applyAction(action: EngineAction): EngineResult {
     };
 }
 
-export function chooseBotAction(): EngineAction {
-    const actions = legalActions();
-    if (actions.length === 0) throw new Error("No legal moves");
-    const action = actions[Math.floor(Math.random() * actions.length)];
-    if (!action) throw new Error("No legal moves");
-    return action;
+/**
+ * Returns true if the current player can claim a draw by threefold repetition.
+ * Under FIDE rules, threefold repetition is claimable, not automatic.
+ */
+export function canClaimThreefold(): boolean {
+    const board = fenToBoard(currentState.fen);
+    const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
+    return repetitions.getCount(hash) >= 3;
+}
+
+/**
+ * Returns true if fivefold repetition has occurred (automatic draw under FIDE).
+ */
+export function isFivefoldRepetition(): boolean {
+    const board = fenToBoard(currentState.fen);
+    const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
+    return repetitions.getCount(hash) >= 5;
+}
+
+/**
+ * Chooses the best move for the bot using alpha-beta search.
+ * @param depth - Search depth in plies (default: 6)
+ */
+export function chooseBotAction(depth: number = 6): EngineAction {
+    const pos = toPosition(currentState);
+    const result = search(pos, depth);
+    return {
+        type: "MOVE",
+        from: result.bestMove.from,
+        to: result.bestMove.to,
+        promotion: result.bestMove.promotion,
+    };
 }
 
 function moveToSan(_state: EngineState, move: ChessMove): string {
@@ -145,7 +174,7 @@ function isInsufficientMaterial(state: EngineState): boolean {
         for (let file = 0; file < 8; file++) {
             const piece = board[rank]?.[file];
             if (!piece) continue;
-            if (piece.toLowerCase() === "k") continue; // kings don't count
+            if (piece.toLowerCase() === "k") continue;
             pieces.push({
                 type: piece.toLowerCase(),
                 color: piece === piece.toUpperCase() ? "white" : "black",
@@ -155,15 +184,12 @@ function isInsufficientMaterial(state: EngineState): boolean {
         }
     }
 
-    // K vs K
     if (pieces.length === 0) return true;
 
-    // K+N vs K or K+B vs K
     if (pieces.length === 1) {
         return pieces[0]!.type === "n" || pieces[0]!.type === "b";
     }
 
-    // K+B vs K+B — draw only if both bishops are on the same color square
     if (pieces.length === 2 && pieces[0]!.type === "b" && pieces[1]!.type === "b") {
         const bishop1Color = (pieces[0]!.file + pieces[0]!.rank) % 2;
         const bishop2Color = (pieces[1]!.file + pieces[1]!.rank) % 2;

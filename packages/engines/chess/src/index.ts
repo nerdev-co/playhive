@@ -1,7 +1,9 @@
 export * from "./types";
 export * from "./store";
-export { generateMoves, generateLegalMoves, makeMove, makeMoveInPlace, unmakeMove, toSearchState, isInCheck, perft } from "./moves";
-export type { SearchState, UndoInfo } from "./moves";
+export { generateMoves, generateLegalMoves, makeMove, makeMoveInPlace, unmakeMove, toPosition, isInCheck, positionInCheck, perft } from "./moves";
+export type { Position, UndoInfo } from "./moves";
+export * from "./evaluation";
+export * from "./search";
 export * from "./engine";
 export * from "./zobrist";
 export { RepetitionTable } from "./repetition";
