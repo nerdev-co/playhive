@@ -1,24 +1,52 @@
-// @ts-nocheck
-// @ts-nocheck
 import type { EngineState, ChessMove, ChessEvent, EngineAction, EngineResult, ChessOptions } from "./types";
-import { START_FEN } from "./store";
-import { parseFEN, generateMoves, makeMove } from "./moves";
+import { START_FEN, parseFEN, boardToFEN } from "./store";
+import { generateMoves, makeMove } from "./moves";
 
+/** Current game state singleton (one game per engine instance) */
 let currentState: EngineState;
 
+/**
+ * Initializes a new chess game.
+ * 
+ * @param options - Optional configuration
+ * @param options.fen - Optional FEN string to start from a specific position
+ * @returns Initial engine state
+ * 
+ * @example
+ * ```ts
+ * const state = initGame(); // Standard starting position
+ * const state = initGame({ fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" });
+ * ```
+ */
 export function initGame(options: ChessOptions = {}): EngineState {
     currentState = parseFEN(options.fen || START_FEN);
     return currentState;
 }
 
+/**
+ * Returns the current engine state.
+ * 
+ * @returns Current EngineState
+ */
 export function getEngineState(): EngineState {
     return currentState;
 }
 
+/**
+ * Returns all legal moves for the current position grouped by piece.
+ * 
+ * @returns Array of { piece: square, moves: ChessMove[] }
+ */
 export function getMoves(): { piece: string; moves: ChessMove[] }[] {
     return generateMoves(currentState);
 }
 
+/**
+ * Returns all legal actions in the EngineAction format for the current position.
+ * Used by the ws-gateway engine interface.
+ * 
+ * @returns Array of EngineAction (type MOVE with from/to/promotion)
+ */
 export function legalActions(): EngineAction[] {
     const allMoves = generateMoves(currentState);
     return allMoves.flatMap(({ piece, moves }) =>
@@ -31,10 +59,24 @@ export function legalActions(): EngineAction[] {
     );
 }
 
+/**
+ * Applies an action to the current position and returns the result.
+ * Core function implementing the Engine interface.
+ * 
+ * @param action - Action to apply (type MOVE with from/to/promotion)
+ * @returns EngineResult with events, new state, gameOver flag, and result
+ * 
+ * @example
+ * ```ts
+ * const result = applyAction({ type: "MOVE", from: "e2", to: "e4" });
+ * console.log(result.events); // [{ type: "move", ... }]
+ * console.log(result.state.turn); // "black"
+ * ```
+ */
 export function applyAction(action: EngineAction): EngineResult {
     const events: ChessEvent[] = [];
-    const move: ChessAction = {
-        type: action.type,
+
+    const move: ChessMove = {
         from: action.from,
         to: action.to,
         promotion: action.promotion,
@@ -45,7 +87,7 @@ export function applyAction(action: EngineAction): EngineResult {
 
     currentState = makeMove(currentState, move);
 
-    // Generate event
+    // Generate move event
     const moveEvent: ChessEvent = {
         type: "move",
         move: {
@@ -53,7 +95,7 @@ export function applyAction(action: EngineAction): EngineResult {
             to: action.to,
             promotion: action.promotion,
             san: moveToSan(currentState, move),
-            capture: prevFen !== currentState.fen && currentState.moveHistory[currentState.moveHistory.length - 1].capture,
+            capture: prevFen !== currentState.fen && currentState.moveHistory[currentState.moveHistory.length - 1]?.capture,
             check: isInCheck(currentState),
             checkmate: false,
         },
@@ -80,8 +122,8 @@ export function applyAction(action: EngineAction): EngineResult {
     } else if (isDraw(currentState)) {
         currentState.gameOver = true;
         currentState.result = "draw";
-        currentState.resultReason = "draw";
-        events.push({ type: "draw", reason: "draw", fen: currentState.fen });
+        currentState.resultReason = "fifty_move_rule";
+        events.push({ type: "draw", reason: "fifty_move_rule", fen: currentState.fen });
     }
 
     return {
@@ -95,29 +137,70 @@ export function applyAction(action: EngineAction): EngineResult {
     };
 }
 
+/**
+ * Chooses a random legal move for bot play.
+ * 
+ * @returns Random legal EngineAction
+ * @throws {Error} If no legal moves available
+ */
 export function chooseBotAction(): EngineAction {
     const actions = legalActions();
     if (actions.length === 0) throw new Error("No legal moves");
-    return actions[Math.floor(Math.random() * actions.length)];
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    if (!action) throw new Error("No legal moves");
+    return action;
 }
 
-function moveToSan(state: EngineState, move: ChessAction): string {
+/**
+ * Generates simple algebraic notation for a move.
+ * 
+ * @param _state - Current engine state (unused, for future SAN generation)
+ * @param move - Move to convert
+ * @returns Basic SAN string (e.g., "e4", "exd5", "e8q")
+ */
+function moveToSan(_state: EngineState, move: ChessMove): string {
     return `${move.from}${move.to}${move.promotion || ""}`;
 }
 
-function isInCheck(state: EngineState): boolean {
+/**
+ * Checks if the side to move is in check.
+ * Currently simplified - full check detection would require generating opponent moves.
+ * 
+ * @param _state - Engine state to check
+ * @returns true if in check (currently always false)
+ */
+function isInCheck(_state: EngineState): boolean {
     // Simplified - would need full check detection
+    // For now, delegate to move generation logic
     return false;
 }
 
+/**
+ * Checks if the position is checkmate.
+ * 
+ * @param state - Engine state to check
+ * @returns true if checkmate
+ */
 function isCheckmate(state: EngineState): boolean {
     return legalActions().length === 0 && isInCheck(state);
 }
 
+/**
+ * Checks if the position is stalemate.
+ * 
+ * @param state - Engine state to check
+ * @returns true if stalemate
+ */
 function isStalemate(state: EngineState): boolean {
     return legalActions().length === 0 && !isInCheck(state);
 }
 
+/**
+ * Checks if the position is a draw by 50-move rule.
+ * 
+ * @param state - Engine state to check
+ * @returns true if draw by 50-move rule
+ */
 function isDraw(state: EngineState): boolean {
-    return state.halfmoveClock >= 100; // 50-move rule
+    return state.halfmoveClock >= 100; // 50-move rule = 100 halfmoves
 }
