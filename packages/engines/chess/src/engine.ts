@@ -1,17 +1,22 @@
 import type { EngineState, ChessMove, ChessEvent, EngineAction, EngineResult, ChessOptions } from "./types";
 import { START_FEN, parseFEN } from "./store";
 import { generateMoves, makeMove, isInCheck, toPosition } from "./moves";
+import { moveToSAN } from "./san";
 import { fenToBoard } from "./store";
 import { computeHash } from "./zobrist";
+import { RepetitionTable } from "./repetition";
+import { search } from "./search";
 import { RepetitionTable } from "./repetition";
 import { search } from "./search";
 
 let currentState: EngineState;
 const repetitions = new RepetitionTable();
+let pendingDrawOffer: "white" | "black" | null = null;
 
 export function initGame(options: ChessOptions = {}): EngineState {
     currentState = parseFEN(options.fen || START_FEN);
     repetitions.clear();
+    pendingDrawOffer = null;
     const board = fenToBoard(currentState.fen);
     const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
     repetitions.add(hash);
@@ -28,7 +33,7 @@ export function getMoves(): { piece: string; moves: ChessMove[] }[] {
 
 export function legalActions(): EngineAction[] {
     const allMoves = generateMoves(currentState);
-    return allMoves.flatMap(({ moves }) =>
+    const actions: EngineAction[] = allMoves.flatMap(({ moves }) =>
         moves.map((move) => ({
             type: "MOVE" as const,
             from: move.from,
@@ -36,69 +41,132 @@ export function legalActions(): EngineAction[] {
             promotion: move.promotion,
         })),
     );
+
+    // Always allow resign
+    actions.push({ type: "RESIGN" });
+
+    // Allow draw offer if it's the player's turn and no pending offer
+    if (!pendingDrawOffer) {
+        actions.push({ type: "DRAW_OFFER" });
+    }
+
+    // Allow draw accept/decline if there's a pending offer from opponent
+    if (pendingDrawOffer && pendingDrawOffer !== currentState.turn) {
+        actions.push({ type: "DRAW_ACCEPT" });
+        actions.push({ type: "DRAW_DECLINE" });
+    }
+
+    return actions;
 }
 
 export function applyAction(action: EngineAction): EngineResult {
     const events: ChessEvent[] = [];
-    const move: ChessMove = {
-        from: action.from,
-        to: action.to,
-        promotion: action.promotion,
-    };
-    const prevTurn = currentState.turn;
-    currentState = makeMove(currentState, move);
 
-    const moveEvent: ChessEvent = {
-        type: "move",
-        move: {
+    // Handle resign
+    if (action.type === "RESIGN") {
+        const winner = currentState.turn === "white" ? "black" : "white";
+        currentState.gameOver = true;
+        currentState.result = winner;
+        currentState.resultReason = "resignation";
+        events.push({ type: "resign", winner, fen: currentState.fen });
+        return buildResult(events);
+    }
+
+    // Handle draw offer (changes turn like a normal action)
+    if (action.type === "DRAW_OFFER") {
+        pendingDrawOffer = currentState.turn;
+        events.push({ type: "draw_offer", offeredBy: currentState.turn, fen: currentState.fen });
+        currentState.turn = currentState.turn === "white" ? "black" : "white";
+        return buildResult(events);
+    }
+
+    // Handle draw accept
+    if (action.type === "DRAW_ACCEPT") {
+        if (pendingDrawOffer && pendingDrawOffer !== currentState.turn) {
+            currentState.gameOver = true;
+            currentState.result = "draw";
+            currentState.resultReason = "agreement";
+            events.push({ type: "draw_accept", fen: currentState.fen });
+            events.push({ type: "draw", reason: "agreement", fen: currentState.fen });
+            pendingDrawOffer = null;
+        }
+        return buildResult(events);
+    }
+
+    // Handle draw decline
+    if (action.type === "DRAW_DECLINE") {
+        if (pendingDrawOffer && pendingDrawOffer !== currentState.turn) {
+            events.push({ type: "draw_decline", fen: currentState.fen });
+            pendingDrawOffer = null;
+        }
+        return buildResult(events);
+    }
+
+    // Handle move
+    if (action.type === "MOVE") {
+        const move: ChessMove = {
             from: action.from,
             to: action.to,
             promotion: action.promotion,
-            san: moveToSan(currentState, move),
-            capture: currentState.moveHistory[currentState.moveHistory.length - 1]?.capture ?? false,
-            check: isInCheck(currentState),
-            checkmate: false,
-        },
-        fen: currentState.fen,
-        turn: currentState.turn,
-    };
-    events.push(moveEvent);
+        };
+        const prevTurn = currentState.turn;
+        const san = moveToSAN(currentState, move);
 
-    // Track position for repetition detection
-    const board = fenToBoard(currentState.fen);
-    const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
-    repetitions.add(hash);
+        currentState = makeMove(currentState, move);
 
-    if (isInCheck(currentState)) {
-        events.push({ type: "check", fen: currentState.fen });
-        if (isCheckmate(currentState)) {
+        const moveEvent: ChessEvent = {
+            type: "move",
+            move: {
+                from: action.from,
+                to: action.to,
+                promotion: action.promotion,
+                san,
+                capture: currentState.moveHistory[currentState.moveHistory.length - 1]?.capture ?? false,
+                check: isInCheck(currentState),
+                checkmate: false,
+            },
+            fen: currentState.fen,
+            turn: currentState.turn,
+        };
+        events.push(moveEvent);
+
+        // Track position for repetition detection
+        const board = fenToBoard(currentState.fen);
+        const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
+        repetitions.add(hash);
+
+        if (isInCheck(currentState)) {
+            events.push({ type: "check", fen: currentState.fen });
+            if (isCheckmate(currentState)) {
+                currentState.gameOver = true;
+                currentState.result = prevTurn;
+                currentState.resultReason = "checkmate";
+                moveEvent.move.checkmate = true;
+                events.push({ type: "checkmate", winner: prevTurn, fen: currentState.fen });
+            }
+        } else if (isStalemate(currentState)) {
             currentState.gameOver = true;
-            currentState.result = prevTurn;
-            currentState.resultReason = "checkmate";
-            moveEvent.move.checkmate = true;
-            events.push({ type: "checkmate", winner: prevTurn, fen: currentState.fen });
+            currentState.result = "draw";
+            currentState.resultReason = "stalemate";
+            events.push({ type: "stalemate", fen: currentState.fen });
+        } else if (isDraw(currentState)) {
+            currentState.gameOver = true;
+            currentState.result = "draw";
+            const reason = currentState.halfmoveClock >= 100 ? "fifty_move_rule" : "insufficient_material";
+            currentState.resultReason = reason;
+            events.push({ type: "draw", reason, fen: currentState.fen });
+        } else if (isFivefoldRepetition()) {
+            currentState.gameOver = true;
+            currentState.result = "draw";
+            currentState.resultReason = "fivefold_repetition";
+            events.push({ type: "draw", reason: "threefold_repetition", fen: currentState.fen });
         }
-    } else if (isStalemate(currentState)) {
-        currentState.gameOver = true;
-        currentState.result = "draw";
-        currentState.resultReason = "stalemate";
-        events.push({ type: "stalemate", fen: currentState.fen });
-    } else if (isDraw(currentState)) {
-        currentState.gameOver = true;
-        currentState.result = "draw";
-        const reason = currentState.halfmoveClock >= 100 ? "fifty_move_rule" : "insufficient_material";
-        currentState.resultReason = reason;
-        events.push({ type: "draw", reason, fen: currentState.fen });
-    } else if (isFivefoldRepetition()) {
-        // Fivefold is automatic under FIDE rules
-        currentState.gameOver = true;
-        currentState.result = "draw";
-        currentState.resultReason = "fivefold_repetition";
-        events.push({ type: "draw", reason: "threefold_repetition", fen: currentState.fen });
     }
-    // Note: threefold repetition is claimable, not automatic.
-    // The UI should call canClaimThreefold() to offer a "Claim Draw" button.
 
+    return buildResult(events);
+}
+
+function buildResult(events: ChessEvent[]): EngineResult {
     return {
         events,
         state: currentState,
@@ -146,7 +214,7 @@ export function chooseBotAction(depth: number = 6): EngineAction {
     };
 }
 
-function moveToSan(_state: EngineState, move: ChessMove): string {
+function moveToSan(state: EngineState, move: ChessMove): string {
     return `${move.from}${move.to}${move.promotion || ""}`;
 }
 

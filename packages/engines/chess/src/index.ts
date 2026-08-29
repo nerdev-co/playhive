@@ -4,6 +4,8 @@ export { generateMoves, generateLegalMoves, makeMove, makeMoveInPlace, unmakeMov
 export type { Position, UndoInfo } from "./moves";
 export * from "./evaluation";
 export * from "./search";
+export * from "./san";
+export * from "./pgn";
 export * from "./engine";
 export * from "./zobrist";
 export { RepetitionTable } from "./repetition";
