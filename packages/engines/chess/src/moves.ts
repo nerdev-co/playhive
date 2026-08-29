@@ -1,5 +1,14 @@
 import type { EngineState, ChessMove } from "./types";
 import { fenToBoard, isWhite, isBlack, boardToFEN } from "./store";
+import {
+    computeHash,
+    movePiece,
+    removePiece,
+    addPiece,
+    flipSide,
+    updateCastling,
+    updateEnPassant,
+} from "./zobrist";
 
 const ORTHOGONAL_DIRS: [number, number][] = [[0, 1], [0, -1], [1, 0], [-1, 0]];
 const DIAGONAL_DIRS: [number, number][] = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
@@ -518,16 +527,19 @@ export interface SearchState {
     enPassant: string | null;
     halfmoveClock: number;
     fullmoveNumber: number;
+    zobristHash: number;
 }
 
 export function toSearchState(state: EngineState): SearchState {
+    const board = fenToBoard(state.fen);
     return {
-        board: fenToBoard(state.fen),
+        board,
         turn: state.turn,
         castling: JSON.parse(JSON.stringify(state.castling)),
         enPassant: state.enPassant,
         halfmoveClock: state.halfmoveClock,
         fullmoveNumber: state.fullmoveNumber,
+        zobristHash: computeHash(board, state.turn, state.castling, state.enPassant),
     };
 }
 
@@ -547,6 +559,7 @@ export interface UndoInfo {
     prevHalfmoveClock: number;
     prevFullmoveNumber: number;
     prevTurn: "white" | "black";
+    prevZobristHash: number;
 }
 
 /** Applies `move` to `state` in place and returns everything needed to
@@ -558,6 +571,7 @@ export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
     const [toFile, toRank] = squareToCoords(move.to);
     const board = state.board;
     const mover = state.turn;
+    const prevZobristHash = state.zobristHash;
 
     const movedPiece = getBoardPiece(board, fromFile, fromRank);
     if (!movedPiece) throw new Error("No piece at source square");
@@ -566,24 +580,38 @@ export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
     let capturedSquare: [number, number] = [toFile, toRank];
     let capturedPiece: string | null;
 
+    let hash = state.zobristHash;
+
     if (isEnPassant) {
         const capRank = mover === "white" ? toRank - 1 : toRank + 1;
         capturedSquare = [toFile, capRank];
         capturedPiece = getBoardPiece(board, toFile, capRank);
         setBoardPiece(board, toFile, capRank, null);
+        // Remove captured pawn from hash
+        if (capturedPiece) {
+            hash = removePiece(hash, capturedPiece, toFile, capRank);
+        }
     } else {
         capturedPiece = getBoardPiece(board, toFile, toRank);
+        // Remove captured piece from hash (if any)
+        if (capturedPiece) {
+            hash = removePiece(hash, capturedPiece, toFile, toRank);
+        }
     }
 
+    // Move piece: remove from source, add at destination
     setBoardPiece(board, fromFile, fromRank, null);
-
     if (move.promotion) {
         const promoPiece = mover === "white" ? move.promotion.toUpperCase() : move.promotion;
         setBoardPiece(board, toFile, toRank, promoPiece);
+        hash = removePiece(hash, movedPiece, fromFile, fromRank);
+        hash = addPiece(hash, promoPiece, toFile, toRank);
     } else {
         setBoardPiece(board, toFile, toRank, movedPiece);
+        hash = movePiece(hash, movedPiece, fromFile, fromRank, toFile, toRank);
     }
 
+    // Castling rook
     let castleRookMove: UndoInfo["castleRookMove"] = null;
     if (
         movedPiece.toLowerCase() === "k" &&
@@ -595,6 +623,7 @@ export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
             if (rookPiece) {
                 setBoardPiece(board, 7, kingRank, null);
                 setBoardPiece(board, 5, kingRank, rookPiece);
+                hash = movePiece(hash, rookPiece, 7, kingRank, 5, kingRank);
                 castleRookMove = { from: [7, kingRank], to: [5, kingRank], piece: rookPiece };
             }
         } else if (move.to.charCodeAt(0) === 99) {
@@ -602,6 +631,7 @@ export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
             if (rookPiece) {
                 setBoardPiece(board, 0, kingRank, null);
                 setBoardPiece(board, 3, kingRank, rookPiece);
+                hash = movePiece(hash, rookPiece, 0, kingRank, 3, kingRank);
                 castleRookMove = { from: [0, kingRank], to: [3, kingRank], piece: rookPiece };
             }
         }
@@ -630,6 +660,9 @@ export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
         if (move.to === "h8") state.castling.black.kingside = false;
     }
 
+    // Update castling hash
+    hash = updateCastling(hash, prevCastling, state.castling);
+
     const prevEnPassant = state.enPassant;
     let newEnPassant: string | null = null;
     if (pieceLower === "p" && Math.abs(toRank - fromRank) === 2) {
@@ -637,6 +670,12 @@ export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
         newEnPassant = coordsToSquare(toFile, epRank);
     }
     state.enPassant = newEnPassant;
+
+    // Update en passant hash
+    hash = updateEnPassant(hash, prevEnPassant, newEnPassant);
+
+    // Flip side to move
+    hash = flipSide(hash);
 
     const prevHalfmoveClock = state.halfmoveClock;
     const isCapture = capturedPiece !== null;
@@ -648,9 +687,12 @@ export function makeMoveInPlace(state: SearchState, move: ChessMove): UndoInfo {
     const prevTurn = state.turn;
     state.turn = mover === "white" ? "black" : "white";
 
+    state.zobristHash = hash;
+
     return {
         move, movedPiece, capturedPiece, capturedSquare, isEnPassant, castleRookMove,
         prevCastling, prevEnPassant, prevHalfmoveClock, prevFullmoveNumber, prevTurn,
+        prevZobristHash,
     };
 }
 
@@ -680,6 +722,7 @@ export function unmakeMove(state: SearchState, undo: UndoInfo): void {
     state.halfmoveClock = undo.prevHalfmoveClock;
     state.fullmoveNumber = undo.prevFullmoveNumber;
     state.turn = undo.prevTurn;
+    state.zobristHash = undo.prevZobristHash;
 }
 
 /** Public, immutable FEN-based move application (UI-facing) — now just a

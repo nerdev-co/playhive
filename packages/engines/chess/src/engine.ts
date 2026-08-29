@@ -2,11 +2,18 @@ import type { EngineState, ChessMove, ChessEvent, EngineAction, EngineResult, Ch
 import { START_FEN, parseFEN } from "./store";
 import { generateMoves, makeMove, isInCheck } from "./moves";
 import { fenToBoard } from "./store";
+import { computeHash } from "./zobrist";
+import { RepetitionTable } from "./repetition";
 
 let currentState: EngineState;
+const repetitions = new RepetitionTable();
 
 export function initGame(options: ChessOptions = {}): EngineState {
     currentState = parseFEN(options.fen || START_FEN);
+    repetitions.clear();
+    const board = fenToBoard(currentState.fen);
+    const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
+    repetitions.add(hash);
     return currentState;
 }
 
@@ -76,6 +83,17 @@ export function applyAction(action: EngineAction): EngineResult {
         const reason = currentState.halfmoveClock >= 100 ? "fifty_move_rule" : "insufficient_material";
         currentState.resultReason = reason;
         events.push({ type: "draw", reason, fen: currentState.fen });
+    } else {
+        // Check threefold repetition
+        const board = fenToBoard(currentState.fen);
+        const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
+        const count = repetitions.add(hash);
+        if (count >= 3) {
+            currentState.gameOver = true;
+            currentState.result = "draw";
+            currentState.resultReason = "threefold_repetition";
+            events.push({ type: "draw", reason: "threefold_repetition", fen: currentState.fen });
+        }
     }
 
     return {
