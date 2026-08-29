@@ -4,8 +4,12 @@ import { createRoomSchema } from "../schemas";
 import { getCurrentUser } from "../auth";
 import { createResponse, createError } from "../utils";
 import { getDbInstance } from "@playhive/db";
+import { setRoomGateway } from "@playhive/db";
 
 const db = getDbInstance();
+
+// Gateway ID for this instance
+const GATEWAY_ID = process.env.GATEWAY_ID ?? `gateway-${process.env.HOSTNAME ?? "local"}`;
 
 export async function handleCreateRoom(request: Request): Promise<Response> {
     const user = await getCurrentUser(request);
@@ -47,6 +51,9 @@ export async function handleCreateRoom(request: Request): Promise<Response> {
         score: 0,
         status: "ACTIVE",
     });
+
+    // Set room gateway for reconnect affinity
+    await setRoomGateway(room.id, GATEWAY_ID);
 
     return createResponse({ room }, 201);
 }
