@@ -84,7 +84,15 @@ export type ChessEvent =
           fen: string;
       }
     /** Pawn promotion occurred */
-    | { type: "promotion"; move: ChessMove; fen: string };
+    | { type: "promotion"; move: ChessMove; fen: string }
+    /** Player resigned */
+    | { type: "resign"; winner: "white" | "black"; fen: string }
+    /** Draw offered by a player */
+    | { type: "draw_offer"; offeredBy: "white" | "black"; fen: string }
+    /** Draw offer accepted */
+    | { type: "draw_accept"; fen: string }
+    /** Draw offer declined */
+    | { type: "draw_decline"; fen: string };
 
 /**
  * Options for initializing a chess game.
@@ -133,17 +141,22 @@ export interface EngineState {
 
 /**
  * Action sent from client to engine.
- * Currently only MOVE is supported (no dice/roll actions like Ludo).
+ * Supports MOVE, RESIGN, and DRAW_OFFER.
  */
-export interface EngineAction {
-    type: "MOVE";
-    /** Source square in algebraic notation */
-    from: string;
-    /** Destination square in algebraic notation */
-    to: string;
-    /** Promotion piece if pawn promotes */
-    promotion?: "q" | "r" | "b" | "n";
-}
+export type EngineAction =
+    | {
+          type: "MOVE";
+          /** Source square in algebraic notation */
+          from: string;
+          /** Destination square in algebraic notation */
+          to: string;
+          /** Promotion piece if pawn promotes */
+          promotion?: "q" | "r" | "b" | "n";
+      }
+    | { type: "RESIGN" }
+    | { type: "DRAW_OFFER" }
+    | { type: "DRAW_ACCEPT" }
+    | { type: "DRAW_DECLINE" };
 
 /**
  * Result of applying an action to the engine.
