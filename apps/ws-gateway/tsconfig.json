@@ -2,7 +2,7 @@
   "extends": "../../packages/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -14,6 +14,6 @@
     "verbatimModuleSyntax": true,
     "noEmit": true
   },
-  "include": ["src/**/*"],
+  "include": ["*.ts", "handlers/**/*", "utils.ts"],
   "exclude": ["node_modules", "dist"]
 }
