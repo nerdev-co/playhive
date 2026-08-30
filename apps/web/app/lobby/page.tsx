@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { getUser, guestLogin, isLoggedIn, getToken } from "@/lib/auth";
-import { Button, Input, Badge, Card } from "@repo/ui";
 import type { RoomSnapshot, PlayerInfo } from "@repo/protocol";
 
 export default function LobbyPage() {
@@ -18,69 +17,49 @@ export default function LobbyPage() {
 
   useEffect(() => {
     if (isLoggedIn()) {
-      const user = getUser() as PlayerInfo;
-      setPlayer(user);
+      setPlayer(getUser() as PlayerInfo);
       setAuthReady(true);
       return;
     }
     guestLogin()
       .then((res) => {
-        const user = res.user as PlayerInfo;
-        setPlayer(user);
+        setPlayer(res.user as PlayerInfo);
         setAuthReady(true);
         const token = getToken();
-        if (token) {
-          authenticate(token);
-        }
+        if (token) authenticate(token);
       })
-      .catch(() => {
-        setAuthReady(true);
-      });
-  }, []);
+      .catch(() => setAuthReady(true));
+  }, [authenticate]);
 
   useEffect(() => {
     const unsub1 = on("ROOM_UPDATE", (envelope) => {
       const payload = (envelope as { payload: { room: RoomSnapshot } }).payload;
-      if (payload && typeof payload === "object" && "room" in payload) {
-        const room = payload.room;
+      if (payload?.room) {
         setRooms((prev) => {
-          const idx = prev.findIndex((r) => r.id === room.id);
+          const idx = prev.findIndex((r) => r.id === payload.room.id);
           if (idx >= 0) {
             const next = [...prev];
-            next[idx] = room;
+            next[idx] = payload.room;
             return next;
           }
-          return [...prev, room];
+          return [...prev, payload.room];
         });
       }
     });
 
-    const unsub2 = on("PLAYER_JOINED", (envelope) => {
-      const payload = (envelope as { payload: { player: PlayerInfo } }).payload;
-      if (payload && typeof payload === "object" && "player" in payload) {
-        setPlayer(payload.player);
-      }
-    });
-
-    const unsub3 = on("ROOM_CREATED", (envelope) => {
+    const unsub2 = on("ROOM_CREATED", (envelope) => {
       const payload = (envelope as { payload: { roomId: string } }).payload;
-      if (payload && typeof payload === "object" && "roomId" in payload) {
-        router.push(`/game/${payload.roomId}`);
-      }
+      if (payload?.roomId) router.push(`/game/${payload.roomId}`);
     });
 
-    return () => {
-      unsub1();
-      unsub2();
-      unsub3();
-    };
+    return () => { unsub1(); unsub2(); };
   }, [on, router]);
 
-  const createRoom = useCallback((game: string, maxPlayers: number, privateRoom: boolean) => {
+  const createRoom = useCallback((game: string, maxPlayers: number, isPrivate: boolean) => {
     send({
       v: 1,
       type: "CREATE_ROOM",
-      payload: { game, maxPlayers, private: privateRoom, settings: { media: { voice: false, video: false } } },
+      payload: { game, maxPlayers, private: isPrivate, settings: { media: { voice: false, video: false } } },
     });
     setShowCreate(false);
   }, [send]);
@@ -107,104 +86,118 @@ export default function LobbyPage() {
   if (!authReady) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-700 border-t-neutral-400" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12">
-      <header className="mb-10 flex items-center justify-between">
+    <div className="mx-auto max-w-3xl px-6 py-10">
+      {/* Header */}
+      <header className="animate-fade-in mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Lobby</h1>
-          <p className="mt-1 flex items-center gap-2 text-sm text-muted">
-            <span className={`h-1.5 w-1.5 rounded-full ${state === "open" ? "bg-success" : "bg-danger"}`} />
+          <h1 className="text-lg font-semibold text-white">Lobby</h1>
+          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500">
+            <span className={`h-1 w-1 rounded-full ${state === "open" ? "bg-emerald-500" : "bg-red-500"}`} />
             {state}
-          </p>
+          </div>
         </div>
-        <Button
+        <button
           onClick={() => {
             if (player?.isGuest) {
-              alert("Guests cannot create rooms. Please sign up to create a room.");
+              alert("Guests cannot create rooms. Sign up to create a room.");
               return;
             }
             setShowCreate(true);
           }}
+          className="rounded-lg bg-indigo-500 px-4 py-2 text-xs font-medium text-white transition-all duration-150 hover:bg-indigo-400 active:scale-[0.98]"
         >
           Create Room
-        </Button>
+        </button>
       </header>
 
+      {/* Player */}
       {player && (
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-hover text-sm font-semibold text-foreground">
+        <div className="animate-fade-in delay-1 mb-6 flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-800 text-xs font-medium text-neutral-300">
             {player.displayName?.[0]?.toUpperCase() ?? "?"}
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">{player.displayName}</p>
-            <p className="text-xs text-muted">@{player.username}</p>
+            <p className="text-sm font-medium text-white">{player.displayName}</p>
+            <p className="text-[11px] text-neutral-500">@{player.username}</p>
           </div>
         </div>
       )}
 
-      <section className="mb-10">
-        <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">Join by invite code</h2>
+      {/* Invite code */}
+      <section className="animate-fade-in delay-2 mb-8">
+        <h2 className="mb-2 text-[11px] font-medium uppercase tracking-widest text-neutral-500">
+          Join by invite code
+        </h2>
         <div className="flex gap-2">
-          <Input
+          <input
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && joinByCode()}
-            placeholder="Paste invite code"
-            className="max-w-xs"
+            placeholder="Paste code"
+            className="flex-1 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition-colors focus:border-neutral-700"
           />
-          <Button variant="secondary" onClick={joinByCode}>
+          <button
+            onClick={joinByCode}
+            className="rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-xs font-medium text-neutral-300 transition-all duration-150 hover:border-neutral-600 hover:text-white active:scale-[0.98]"
+          >
             Join
-          </Button>
+          </button>
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted">Available Rooms</h2>
+      {/* Rooms */}
+      <section className="animate-fade-in delay-3">
+        <h2 className="mb-3 text-[11px] font-medium uppercase tracking-widest text-neutral-500">
+          Available Rooms
+        </h2>
         {rooms.length === 0 ? (
-          <Card className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-            <p className="text-sm text-muted">No rooms available.</p>
-            <p className="text-xs text-muted/70">Create one to get started.</p>
-          </Card>
+          <div className="rounded-xl border border-dashed border-neutral-800 py-14 text-center">
+            <p className="text-sm text-neutral-500">No rooms yet.</p>
+            <p className="mt-1 text-xs text-neutral-600">Create one to get started.</p>
+          </div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {rooms.map((room) => {
+          <div className="space-y-2">
+            {rooms.map((room, i) => {
               const seatsTaken = room.seats.filter((s) => s.playerId).length;
               const isFull = seatsTaken >= room.maxPlayers;
+              const gameColor = room.gameType === "chess" ? "text-amber-400" : "text-emerald-400";
               return (
-                <Card
+                <div
                   key={room.id}
-                  hoverable
-                  className="flex items-center justify-between p-4"
+                  className={`animate-fade-in-up delay-${Math.min(i, 5)} flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900/60 px-4 py-3 transition-colors hover:border-neutral-700 hover:bg-neutral-900`}
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="truncate text-sm font-medium text-foreground">{room.name}</h3>
-                      <Badge variant="default">{room.gameType}</Badge>
+                      <span className="text-sm font-medium text-white">{room.name}</span>
+                      <span className={`text-[10px] font-medium uppercase ${gameColor}`}>
+                        {room.gameType}
+                      </span>
                     </div>
-                    <p className="mt-1 text-xs text-muted">
-                      {seatsTaken} / {room.maxPlayers} players · {room.status}
+                    <p className="mt-0.5 text-[11px] text-neutral-500">
+                      {seatsTaken}/{room.maxPlayers} players
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
+                  <button
                     onClick={() => joinRoom(room.id)}
                     disabled={isFull}
+                    className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-[11px] font-medium text-neutral-300 transition-all duration-150 hover:border-neutral-600 hover:text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     {isFull ? "Full" : "Join"}
-                  </Button>
-                </Card>
+                  </button>
+                </div>
               );
             })}
           </div>
         )}
       </section>
 
+      {/* Create dialog */}
       {showCreate && (
         <CreateRoomDialog
           onClose={() => setShowCreate(false)}
@@ -220,46 +213,69 @@ function CreateRoomDialog({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (game: string, maxPlayers: number, privateRoom: boolean) => void;
+  onCreate: (game: string, maxPlayers: number, isPrivate: boolean) => void;
 }) {
   const [game, setGame] = useState("chess");
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [isPrivate, setIsPrivate] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-sm">
-        <h2 className="mb-5 text-base font-semibold text-foreground">Create Room</h2>
-        <div className="mb-4">
-          <Input
-            label="Game"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="animate-scale-in w-full max-w-sm rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl">
+        <h2 className="mb-4 text-sm font-semibold text-white">Create Room</h2>
+
+        <div className="mb-3">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-widest text-neutral-500">
+            Game
+          </label>
+          <select
             value={game}
             onChange={(e) => setGame(e.target.value)}
-          />
+            className="w-full rounded-lg border border-neutral-800 bg-neutral-800/50 px-3 py-2 text-sm text-white outline-none focus:border-neutral-700"
+          >
+            <option value="chess">Chess</option>
+            <option value="ludo">Ludo</option>
+          </select>
         </div>
-        <div className="mb-6">
-          <Input
-            label="Max Players"
+
+        <div className="mb-3">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-widest text-neutral-500">
+            Max Players
+          </label>
+          <input
             type="number"
-            min={1}
+            min={2}
             max={8}
             value={maxPlayers}
             onChange={(e) => setMaxPlayers(Number(e.target.value))}
+            className="w-full rounded-lg border border-neutral-800 bg-neutral-800/50 px-3 py-2 text-sm text-white outline-none focus:border-neutral-700"
           />
         </div>
-        <div className="mb-6 flex items-center gap-2">
+
+        <div className="mb-5 flex items-center gap-2">
           <input
             id="private"
             type="checkbox"
             checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
-            className="h-4 w-4 rounded border-border accent-foreground"
+            className="h-3.5 w-3.5 rounded border-neutral-700 bg-neutral-800 accent-indigo-500"
           />
-          <label htmlFor="private" className="text-sm text-foreground">Private room (invite only)</label>
+          <label htmlFor="private" className="text-xs text-neutral-400">Private (invite only)</label>
         </div>
+
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => onCreate(game, maxPlayers, isPrivate)}>Create</Button>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-400 transition-colors hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onCreate(game, maxPlayers, isPrivate)}
+            className="rounded-lg bg-indigo-500 px-4 py-1.5 text-xs font-medium text-white transition-all duration-150 hover:bg-indigo-400 active:scale-[0.98]"
+          >
+            Create
+          </button>
         </div>
       </div>
     </div>
