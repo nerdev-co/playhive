@@ -1,5 +1,6 @@
 export * from "./types";
 export * from "./store";
+export * from "./view";
 export { generateMoves, generateLegalMoves, makeMove, makeMoveInPlace, unmakeMove, toPosition, isInCheck, positionInCheck, perft } from "./moves";
 export type { Position, UndoInfo } from "./moves";
 export * from "./evaluation";

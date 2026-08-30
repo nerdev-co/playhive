@@ -1,33 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-
-const PIECE_SYMBOLS: Record<string, string> = {
-  K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙",
-  k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟",
-};
-
-function fenToBoard(fen: string): (string | null)[][] {
-  const parts = fen.split(" ");
-  const rows = (parts[0] ?? "").split("/");
-  const board: (string | null)[][] = [];
-  for (const row of rows) {
-    const boardRow: (string | null)[] = [];
-    for (const ch of row) {
-      if (/\d/.test(ch)) {
-        for (let i = 0; i < Number(ch); i++) boardRow.push(null);
-      } else {
-        boardRow.push(ch);
-      }
-    }
-    board.push(boardRow);
-  }
-  return board;
-}
-
-function squareColor(file: number, rank: number): "light" | "dark" {
-  return (file + rank) % 2 === 0 ? "light" : "dark";
-}
+import { fenToBoard, PIECE_SYMBOLS, squareColor } from "@repo/chess";
 
 export function ChessBoard({
   fen,
