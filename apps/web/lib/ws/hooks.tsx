@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { WsClient } from "./client";
 import type { WsEnvelope, Listener } from "./types";
+import { getToken, isLoggedIn, guestLogin } from "@/lib/auth";
 
 const WsContext = createContext<WsClient | null>(null);
 
@@ -13,7 +14,18 @@ export function WsProvider({ children, url }: { children: React.ReactNode; url?:
   if (!clientRef.current) {
     clientRef.current = new WsClient({
       url,
-      onOpen: () => setState("open"),
+      onOpen: () => {
+        setState("open");
+        // Send AUTH with JWT token on connect
+        const token = getToken();
+        if (token) {
+          clientRef.current?.send({
+            v: 1,
+            type: "AUTH",
+            payload: { token },
+          });
+        }
+      },
       onClose: () => setState("closed"),
       onError: () => setState("error"),
       onMessage: () => {},

@@ -20,7 +20,7 @@ export interface AuthResponse {
 let cachedToken: string | null = null;
 let cachedUser: User | null = null;
 
-function getToken(): string | null {
+export function getToken(): string | null {
   if (cachedToken) return cachedToken;
   if (typeof window === "undefined") return null;
   cachedToken = localStorage.getItem("playhive_token");

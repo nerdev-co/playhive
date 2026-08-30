@@ -114,7 +114,17 @@ export default function LobbyPage() {
             {state}
           </p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>Create Room</Button>
+        <Button
+          onClick={() => {
+            if (player?.isGuest) {
+              alert("Guests cannot create rooms. Please sign up to create a room.");
+              return;
+            }
+            setShowCreate(true);
+          }}
+        >
+          Create Room
+        </Button>
       </header>
 
       {player && (
