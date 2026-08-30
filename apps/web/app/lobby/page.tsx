@@ -54,11 +54,19 @@ export default function LobbyPage() {
       }
     });
 
+    const unsub3 = on("ROOM_CREATED", (payload) => {
+      if (payload && typeof payload === "object" && "roomId" in payload) {
+        const { roomId } = payload as { roomId: string };
+        router.push(`/game/${roomId}`);
+      }
+    });
+
     return () => {
       unsub1();
       unsub2();
+      unsub3();
     };
-  }, [on]);
+  }, [on, router]);
 
   const createRoom = (game: string, maxPlayers: number, privateRoom: boolean) => {
     send({
@@ -85,6 +93,7 @@ export default function LobbyPage() {
       type: "JOIN_ROOM",
       payload: { inviteCode: inviteCode.trim(), media: { voice: false, video: false } },
     });
+    // Navigation happens via ROOM_CREATED listener
     setInviteCode("");
   };
 
