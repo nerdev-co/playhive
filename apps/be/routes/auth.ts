@@ -125,3 +125,36 @@ export async function handleProfile(request: Request): Promise<Response> {
 
     return createResponse({ user: updatedUser });
 }
+
+export async function handleGuest(request: Request): Promise<Response> {
+    const guestId = crypto.randomUUID().slice(0, 8);
+    const username = `guest_${guestId}`;
+    const displayName = `Guest ${guestId}`;
+
+    const user = await db.orm.public.User.create({
+        username,
+        email: null,
+        passwordHash: null,
+        displayName,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${guestId}`,
+        isGuest: true,
+    });
+
+    const token = await createToken(user.id);
+
+    return createResponse(
+        {
+            user: {
+                id: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                email: user.email,
+                avatar: user.avatar,
+                isGuest: true,
+            },
+            token,
+            gatewayUrl: WS_GATEWAY_URL,
+        },
+        201,
+    );
+}

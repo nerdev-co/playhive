@@ -6,6 +6,7 @@ import {
     handleSignin,
     handleMe,
     handleProfile,
+    handleGuest,
 } from "./routes/auth";
 import { getCurrentUser } from "./auth";
 import {
@@ -44,6 +45,10 @@ const server = Bun.serve({
 
             if (path === "/auth/signin" && request.method === "POST") {
                 return handleSignin(request);
+            }
+
+            if (path === "/auth/guest" && request.method === "POST") {
+                return handleGuest(request);
             }
 
             if (path === "/auth/me" && request.method === "GET") {
