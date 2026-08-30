@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, use, useMemo } from "react";
+import { useState, useEffect, useCallback, use, useMemo, useRef } from "react";
 import { ChessBoard } from "@/components/chess/board";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { useTheme } from "@/lib/theme";
@@ -63,12 +63,17 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
   const [inCheck, setInCheck] = useState(false);
   const [pendingDrawOffer, setPendingDrawOffer] = useState(false);
   const [drawOfferFrom, setDrawOfferFrom] = useState<"white" | "black" | null>(null);
+  const moveListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const init = initGame();
     setEngineState(init);
     refreshLegalMoves(init);
   }, []);
+
+  useEffect(() => {
+    moveListRef.current?.scrollTo({ top: moveListRef.current.scrollHeight, behavior: "smooth" });
+  }, [engineState?.moveHistory.length]);
 
   const refreshLegalMoves = useCallback((state: EngineState) => {
     const actions = legalActions();
@@ -129,6 +134,8 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     [engineState, roomId, refreshLegalMoves, send],
   );
 
+  const captured = useMemo(() => (engineState ? getCaptured(engineState.fen) : { byWhite: [], byBlack: [], diff: 0 }), [engineState]);
+
   if (!engineState) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-950">
@@ -144,8 +151,6 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       ? `Draw — ${engineState.resultReason}`
       : `${engineState.result === "white" ? "White" : "Black"} wins — ${engineState.resultReason}`
     : null;
-
-  const captured = useMemo(() => getCaptured(engineState.fen), [engineState.fen]);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start lg:gap-8">
@@ -260,12 +265,13 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-widest text-neutral-600">
               Moves
             </p>
-            <div className="max-h-48 space-y-px overflow-y-auto font-mono text-[11px]">
+            <div ref={moveListRef} className="max-h-48 space-y-px overflow-y-auto font-mono text-[11px]">
               {Array.from({ length: Math.ceil(engineState.moveHistory.length / 2) }, (_, i) => {
                 const white = engineState.moveHistory[i * 2];
                 const black = engineState.moveHistory[i * 2 + 1];
+                const isLast = i === Math.ceil(engineState.moveHistory.length / 2) - 1;
                 return (
-                  <div key={i} className="flex gap-2 py-0.5">
+                  <div key={i} className={`flex gap-2 rounded px-1 py-0.5 ${isLast ? "bg-neutral-800/60" : ""}`}>
                     <span className="w-5 text-neutral-600">{i + 1}.</span>
                     <span className="w-14 text-neutral-300">{white?.san ?? ""}</span>
                     <span className="w-14 text-neutral-500">{black?.san ?? ""}</span>
