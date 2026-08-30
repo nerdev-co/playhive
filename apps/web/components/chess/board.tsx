@@ -170,108 +170,109 @@ export function ChessBoard({
 
   return (
     <div className="mx-auto w-fit select-none">
-      <div className="relative">
-        {/* Rank labels */}
-        <div className="absolute -left-5 top-0 flex h-full flex-col justify-around text-[10px] font-medium text-neutral-500">
-          {ranks.map((r) => (
-            <div key={r} className="flex h-[12.5%] items-center">{r + 1}</div>
-          ))}
-        </div>
+      <div className="relative grid grid-cols-8 rounded-sm overflow-hidden shadow-lg" style={{ border: "1px solid #27272a" }}>
+        {ranks.map((rank) =>
+          files.map((file) => {
+            const sq = `${String.fromCharCode(97 + file)}${rank + 1}`;
+            const bg = getSquareBg(file, rank, sq);
+            const isLegal = selected
+              ? (legalMap.get(selected) ?? []).some((t) => t.to === sq)
+              : false;
+            const isCapture = isLegal && (board[rank]?.[file] ?? null) !== null;
+            const isLight = squareColor(file, rank) === "light";
+            const showRank = file === files[0];
+            const showFile = rank === ranks[ranks.length - 1];
 
-        {/* Board */}
-        <div className="relative grid grid-cols-8 rounded-sm overflow-hidden shadow-lg" style={{ border: "1px solid #27272a" }}>
-          {ranks.map((rank) =>
-            files.map((file) => {
-              const sq = `${String.fromCharCode(97 + file)}${rank + 1}`;
-              const bg = getSquareBg(file, rank, sq);
-              const isLegal = selected
-                ? (legalMap.get(selected) ?? []).some((t) => t.to === sq)
-                : false;
-              const isCapture = isLegal && (board[rank]?.[file] ?? null) !== null;
-              return (
-                <div
-                  key={sq}
-                  className="relative flex h-11 w-11 cursor-pointer items-center justify-center text-3xl sm:h-13 sm:w-13 sm:text-4xl md:h-14 md:w-14 md:text-4xl transition-colors duration-75"
-                  style={{ backgroundColor: bg }}
-                  onClick={() => handleSquareClick(file, rank)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, file, rank)}
-                >
-                  {isLegal && !isCapture && (
-                    <div
-                      className="absolute rounded-full"
-                      style={{ width: 10, height: 10, backgroundColor: SQUARE_LEGAL }}
-                    />
-                  )}
-                  {isLegal && isCapture && (
-                    <div
-                      className="absolute inset-0 rounded-full"
-                      style={{ border: `3px solid ${SQUARE_CAPTURE}` }}
-                    />
-                  )}
-                  {board[rank]?.[file] ? (
-                    <span
-                      draggable={!disabled}
-                      onDragStart={(e) => handleDragStart(e, file, rank)}
-                      className={`cursor-grab active:cursor-grabbing select-none ${
-                        board[rank]![file] === "p" ? "text-[0.75em]" : ""
-                      }`}
-                      style={{
-                        color: board[rank]![file] === board[rank]![file]!.toUpperCase() ? "#ffffff" : "#1a1a1a",
-                        textShadow: board[rank]![file] === board[rank]![file]!.toUpperCase()
-                          ? "0 1px 3px rgba(0,0,0,0.5)"
-                          : "0 1px 2px rgba(255,255,255,0.3)",
-                      }}
-                    >
-                      {PIECE_SYMBOLS[board[rank]![file]!]}
-                    </span>
-                  ) : null}
-                </div>
-              );
-            }),
-          )}
-
-          {/* Promotion picker overlay */}
-          {pendingPromotion && (
-            <div
-              className="absolute inset-0 z-10 flex items-center justify-center bg-black/50"
-              onClick={() => setPendingPromotion(null)}
-            >
+            return (
               <div
-                className="flex gap-1 rounded-lg border border-neutral-700 bg-neutral-900 p-2 shadow-xl"
-                onClick={(e) => e.stopPropagation()}
+                key={sq}
+                className="relative flex h-11 w-11 cursor-pointer items-center justify-center text-3xl sm:h-13 sm:w-13 sm:text-4xl md:h-14 md:w-14 md:text-4xl transition-colors duration-75"
+                style={{ backgroundColor: bg }}
+                onClick={() => handleSquareClick(file, rank)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, file, rank)}
               >
-                {PROMOTION_PIECES.map((piece) => {
-                  const pieceChar = turn === "white" ? piece.toUpperCase() : piece;
-                  return (
-                    <button
-                      key={piece}
-                      onClick={() => handlePromotionSelect(piece)}
-                      className="flex h-12 w-12 items-center justify-center rounded-md text-2xl transition-all duration-150 hover:bg-neutral-700 active:scale-95 sm:h-14 sm:w-14 sm:text-3xl"
-                      style={{
-                        color: turn === "white" ? "#ffffff" : "#1a1a1a",
-                        textShadow: turn === "white"
-                          ? "0 1px 3px rgba(0,0,0,0.5)"
-                          : "0 1px 2px rgba(255,255,255,0.3)",
-                      }}
-                    >
-                      {PIECE_SYMBOLS[pieceChar]}
-                    </button>
-                  );
-                })}
+                {showRank && (
+                  <span
+                    className="absolute left-0.5 top-0 text-[9px] font-semibold leading-none sm:text-[10px]"
+                    style={{ color: isLight ? SQUARE_DARK : SQUARE_LIGHT, opacity: 0.7 }}
+                  >
+                    {rank + 1}
+                  </span>
+                )}
+                {showFile && (
+                  <span
+                    className="absolute bottom-0 right-0.5 text-[9px] font-semibold leading-none sm:text-[10px]"
+                    style={{ color: isLight ? SQUARE_DARK : SQUARE_LIGHT, opacity: 0.7 }}
+                  >
+                    {String.fromCharCode(97 + file)}
+                  </span>
+                )}
+                {isLegal && !isCapture && (
+                  <div
+                    className="absolute rounded-full"
+                    style={{ width: 10, height: 10, backgroundColor: SQUARE_LEGAL }}
+                  />
+                )}
+                {isLegal && isCapture && (
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{ border: `3px solid ${SQUARE_CAPTURE}` }}
+                  />
+                )}
+                {board[rank]?.[file] ? (
+                  <span
+                    draggable={!disabled}
+                    onDragStart={(e) => handleDragStart(e, file, rank)}
+                    className={`cursor-grab active:cursor-grabbing select-none ${
+                      board[rank]![file] === "p" ? "text-[0.75em]" : ""
+                    }`}
+                    style={{
+                      color: board[rank]![file] === board[rank]![file]!.toUpperCase() ? "#ffffff" : "#1a1a1a",
+                      textShadow: board[rank]![file] === board[rank]![file]!.toUpperCase()
+                        ? "0 1px 3px rgba(0,0,0,0.5)"
+                        : "0 1px 2px rgba(255,255,255,0.3)",
+                    }}
+                  >
+                    {PIECE_SYMBOLS[board[rank]![file]!]}
+                  </span>
+                ) : null}
               </div>
-            </div>
-          )}
-        </div>
+            );
+          }),
+        )}
 
-        {/* File labels */}
-        <div className="flex justify-around text-[10px] font-medium text-neutral-500">
-          {files.map((f) => (
-            <div key={f} className="flex w-11 justify-center sm:w-13 md:w-14">
-              {String.fromCharCode(97 + f)}
+        {/* Promotion picker overlay */}
+        {pendingPromotion && (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center bg-black/50"
+            onClick={() => setPendingPromotion(null)}
+          >
+            <div
+              className="flex gap-1 rounded-lg border border-neutral-700 bg-neutral-900 p-2 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {PROMOTION_PIECES.map((piece) => {
+                const pieceChar = turn === "white" ? piece.toUpperCase() : piece;
+                return (
+                  <button
+                    key={piece}
+                    onClick={() => handlePromotionSelect(piece)}
+                    className="flex h-12 w-12 items-center justify-center rounded-md text-2xl transition-all duration-150 hover:bg-neutral-700 active:scale-95 sm:h-14 sm:w-14 sm:text-3xl"
+                    style={{
+                      color: turn === "white" ? "#ffffff" : "#1a1a1a",
+                      textShadow: turn === "white"
+                        ? "0 1px 3px rgba(0,0,0,0.5)"
+                        : "0 1px 2px rgba(255,255,255,0.3)",
+                    }}
+                  >
+                    {PIECE_SYMBOLS[pieceChar]}
+                  </button>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
