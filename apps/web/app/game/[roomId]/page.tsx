@@ -1,11 +1,53 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, use, useMemo } from "react";
 import { ChessBoard } from "@/components/chess/board";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { useTheme } from "@/lib/theme";
 import { initGame, applyAction, legalActions, canClaimThreefold, isInCheck } from "@repo/chess";
+import { PIECE_SYMBOLS } from "@repo/chess";
 import type { EngineAction, EngineState } from "@repo/chess";
+
+const START_COUNTS: Record<"q" | "r" | "b" | "n" | "p", number> = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+const PIECE_VALUE: Record<"q" | "r" | "b" | "n" | "p", number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+
+function getCaptured(fen: string) {
+  const boardPart = fen.split(" ")[0] ?? "";
+  const white: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+  const black: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+  for (const ch of boardPart) {
+    const t = ch.toLowerCase();
+    if (!(t in white)) continue;
+    if (ch === t) {
+      black[t] = (black[t] ?? 0) + 1;
+    } else {
+      white[t] = (white[t] ?? 0) + 1;
+    }
+  }
+  const byWhite: string[] = [];
+  const byBlack: string[] = [];
+  let diff = 0;
+  for (const t of ["q", "r", "b", "n", "p"] as const) {
+    const blackMissing = START_COUNTS[t] - (black[t] ?? 0);
+    const whiteMissing = START_COUNTS[t] - (white[t] ?? 0);
+    for (let i = 0; i < blackMissing; i++) byWhite.push(t);
+    for (let i = 0; i < whiteMissing; i++) byBlack.push(t);
+    diff += (blackMissing - whiteMissing) * PIECE_VALUE[t];
+  }
+  return { byWhite, byBlack, diff };
+}
+
+function CapturedRow({ pieces, lead }: { pieces: string[]; lead?: number }) {
+  if (!pieces.length && !lead) return null;
+  return (
+    <div className="mx-auto flex h-5 w-fit items-center gap-0.5 text-lg leading-none text-neutral-400">
+      {pieces.map((p, i) => (
+        <span key={i}>{PIECE_SYMBOLS[p]}</span>
+      ))}
+      {lead ? <span className="ml-1 text-[10px] font-medium text-neutral-500">+{lead}</span> : null}
+    </div>
+  );
+}
 
 export default function GamePage({ params }: { params: Promise<{ roomId: string }> }) {
   const { state: wsState, send, on } = useWebSocket();
@@ -103,19 +145,25 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       : `${engineState.result === "white" ? "White" : "Black"} wins — ${engineState.resultReason}`
     : null;
 
+  const captured = useMemo(() => getCaptured(engineState.fen), [engineState.fen]);
+
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start lg:gap-8">
       {/* Board */}
       <div className="flex-1">
-        <ChessBoard
-          fen={engineState.fen}
-          turn={engineState.turn}
-          legalMoves={legalMoves}
-          lastMove={lastMove}
-          inCheck={inCheck}
-          onMove={handleMove}
-          disabled={isGameOver}
-        />
+        <CapturedRow pieces={captured.byBlack} lead={captured.diff < 0 ? -captured.diff : undefined} />
+        <div className="my-1">
+          <ChessBoard
+            fen={engineState.fen}
+            turn={engineState.turn}
+            legalMoves={legalMoves}
+            lastMove={lastMove}
+            inCheck={inCheck}
+            onMove={handleMove}
+            disabled={isGameOver}
+          />
+        </div>
+        <CapturedRow pieces={captured.byWhite} lead={captured.diff > 0 ? captured.diff : undefined} />
       </div>
 
       {/* Sidebar */}
