@@ -65,6 +65,13 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
   const [drawOfferFrom, setDrawOfferFrom] = useState<"white" | "black" | null>(null);
   const moveListRef = useRef<HTMLDivElement>(null);
 
+  // Store roomId for RESUME on reconnect
+  useEffect(() => {
+    localStorage.setItem("playhive:activeRoomId", roomId);
+    return () => localStorage.removeItem("playhive:activeRoomId");
+  }, [roomId]);
+
+  // Initialize engine from server snapshot or default
   useEffect(() => {
     const init = initGame();
     setEngineState(init);
@@ -83,6 +90,28 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     setLegalMoves(moves);
   }, []);
 
+  // Listen for GAME_STATE snapshots from server (on reconnect/RESUME)
+  useEffect(() => {
+    const unsub = on("GAME_STATE", (data: unknown) => {
+      const msg = data as { payload?: { kind?: string; state?: Record<string, unknown> } };
+      if (msg?.payload?.kind === "snapshot" && msg.payload.state) {
+        const s = msg.payload.state as Partial<EngineState>;
+        if (s.fen) {
+          const restored = initGame({ fen: s.fen });
+          if (s.moveHistory) restored.moveHistory = s.moveHistory as EngineState["moveHistory"];
+          if (s.gameOver !== undefined) restored.gameOver = s.gameOver;
+          if (s.result) restored.result = s.result;
+          if (s.resultReason) restored.resultReason = s.resultReason;
+          if (s.turn) restored.turn = s.turn;
+          if (s.fullmoveNumber) restored.fullmoveNumber = s.fullmoveNumber;
+          setEngineState(restored);
+          refreshLegalMoves(restored);
+        }
+      }
+    });
+    return unsub;
+  }, [on, refreshLegalMoves]);
+
   const handleMove = useCallback(
     (from: string, to: string, promotion?: string) => {
       if (!engineState || engineState.gameOver) return;
@@ -96,7 +125,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       setPendingDrawOffer(false);
       setDrawOfferFrom(null);
 
-      send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
+      send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action, state: result.state } });
     },
     [engineState, roomId, refreshLegalMoves, send],
   );
@@ -107,7 +136,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     const result = applyAction(action);
     setEngineState(result.state);
     setLastMove(null);
-    send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
+    send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action, state: result.state } });
   }, [engineState, roomId, send]);
 
   const handleDrawOffer = useCallback(() => {
@@ -117,7 +146,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     setEngineState(result.state);
     setPendingDrawOffer(true);
     refreshLegalMoves(result.state);
-    send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
+    send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action, state: result.state } });
   }, [engineState, pendingDrawOffer, roomId, refreshLegalMoves, send]);
 
   const handleDrawRespond = useCallback(
@@ -129,7 +158,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       setDrawOfferFrom(null);
       setPendingDrawOffer(false);
       refreshLegalMoves(result.state);
-      send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
+      send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action, state: result.state } });
     },
     [engineState, roomId, refreshLegalMoves, send],
   );
@@ -236,7 +265,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
                   const result = applyAction(action);
                   setEngineState(result.state);
                   refreshLegalMoves(result.state);
-                  send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
+                  send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action, state: result.state } });
                 }}
                 className="w-full rounded-lg border border-emerald-800/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-400 transition-all duration-150 hover:bg-emerald-500/20 active:scale-[0.98]"
               >

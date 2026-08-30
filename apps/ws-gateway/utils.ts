@@ -36,6 +36,13 @@ export interface ConnectedClient {
 export const clients = new Map<string, ConnectedClient>();
 export const rooms = new Map<string, RoomSnapshot>();
 
+/** Server-side game state per room. Keyed by roomId. */
+export const gameStates = new Map<string, {
+    gameType: GameType;
+    state: Record<string, unknown>;
+    stateVersion: number;
+}>();
+
 export function generateId(): string {
     return crypto.randomUUID();
 }

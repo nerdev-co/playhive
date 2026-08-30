@@ -3,7 +3,7 @@ import { WebSocket } from "ws";
 import { type RoomSnapshot, type SeatInfo, ErrorCode } from "protocol";
 import { createEnvelope } from "protocol";
 
-import { sendEnvelope, broadcastToRoom, clients, rooms } from "../utils";
+import { sendEnvelope, broadcastToRoom, clients, rooms, gameStates } from "../utils";
 
 export function handlePlayerReady(playerId: string, ready: boolean): void {
     const client = clients.get(playerId);
@@ -92,6 +92,14 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
             .filter((s: SeatInfo) => s.playerId)
             .map((s: SeatInfo) => s.seat);
 
+        const initialState = { fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", turn: "white", moveHistory: [] };
+
+        gameStates.set(updatedRoom.id, {
+            gameType: updatedRoom.gameType,
+            state: initialState,
+            stateVersion: Date.now(),
+        });
+
         broadcastToRoom(
             updatedRoom.id,
             createEnvelope("GAME_START", {
@@ -101,7 +109,7 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
                     media: updatedRoom.settings.media,
                     private: updatedRoom.settings.private,
                 },
-                initialState: {},
+                initialState,
             }),
         );
 

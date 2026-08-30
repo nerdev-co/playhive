@@ -8,12 +8,13 @@ import {
     broadcastToRoom,
     clients,
     rooms,
+    gameStates,
     generateId,
 } from "../utils";
 
 export function handleGameAction(
     playerId: string,
-    payload: { seat: number; action: { type: string; [key: string]: unknown } },
+    payload: { seat: number; action: { type: string; [key: string]: unknown }; state?: Record<string, unknown> },
 ): void {
     const client = clients.get(playerId);
     if (!client || !client.roomId || client.seat === undefined) return;
@@ -33,6 +34,16 @@ export function handleGameAction(
     if (!room || room.status !== "IN_PROGRESS") return;
 
     console.log(`Game action from ${playerId}:`, payload.action);
+
+    // Store the updated game state if client sent it
+    if (payload.state) {
+        const existing = gameStates.get(room.id);
+        gameStates.set(room.id, {
+            gameType: room.gameType,
+            state: payload.state,
+            stateVersion: Date.now(),
+        });
+    }
 
     broadcastToRoom(
         room.id,

@@ -25,6 +25,18 @@ export function WsProvider({ children, url }: { children: React.ReactNode; url?:
             payload: { token },
           });
         }
+        // Resume active game if we have a stored roomId
+        const savedRoomId = localStorage.getItem("playhive:activeRoomId");
+        if (savedRoomId) {
+          // Wait briefly for AUTH to complete, then resume
+          setTimeout(() => {
+            clientRef.current?.send({
+              v: 1,
+              type: "RESUME",
+              payload: { roomId: savedRoomId, lastStateVersion: 0 },
+            });
+          }, 200);
+        }
       },
       onClose: () => setState("closed"),
       onError: () => setState("error"),

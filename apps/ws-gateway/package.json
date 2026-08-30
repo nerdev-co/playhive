@@ -11,8 +11,9 @@
     },
     "dependencies": {
         "@playhive/db": "workspace:*",
-        "protocol": "workspace:*",
-        "ws": "^8.21.3"
+    "protocol": "workspace:*",
+    "@playhive/chess-engine": "workspace:*",
+    "ws": "^8.21.3"
     },
     "devDependencies": {
         "@types/bun": "latest",

@@ -7,7 +7,7 @@ import { handleAuth } from "./auth";
 import { handleCreateRoom, handleJoinRoom } from "./rooms";
 import { handlePlayerReady, handleStartGame, handleLeaveRoom } from "./players";
 import { handleGameAction, handlePing } from "./game";
-import { sendEnvelope, createEnvelope, clients } from "../utils";
+import { sendEnvelope, createEnvelope, clients, rooms, gameStates } from "../utils";
 
 export function handleMessage(
     ws: WebSocket,
@@ -80,6 +80,45 @@ export function handleMessage(
             case "PING":
                 handlePing(ws);
                 break;
+            case "RESUME": {
+                const { roomId } = envelope.payload as { roomId: string };
+                const client = [...clients.entries()].find(([, c]) => c.ws === ws)?.[1];
+                if (!client) break;
+
+                const room = rooms.get(roomId);
+                if (!room || room.status !== "IN_PROGRESS") {
+                    sendEnvelope(ws, createEnvelope("ERROR", {
+                        code: ErrorCode.ROOM_NOT_FOUND,
+                        message: "Game not in progress",
+                    }));
+                    break;
+                }
+
+                // Find the player's seat in this room
+                const seatIdx = room.seats.findIndex(s => s.playerId === client.playerId);
+                if (seatIdx === -1) {
+                    sendEnvelope(ws, createEnvelope("ERROR", {
+                        code: ErrorCode.FORBIDDEN,
+                        message: "Not in this room",
+                    }));
+                    break;
+                }
+
+                // Re-associate client with room
+                client.roomId = roomId;
+                client.seat = seatIdx;
+
+                // Send game state snapshot
+                const gs = gameStates.get(roomId);
+                if (gs) {
+                    sendEnvelope(ws, createEnvelope("GAME_STATE", {
+                        kind: "snapshot",
+                        stateVersion: gs.stateVersion,
+                        state: gs.state,
+                    }));
+                }
+                break;
+            }
             default:
                 console.log(`Unhandled message type: ${envelope.type}`);
         }
