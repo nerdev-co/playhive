@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { ChessBoard } from "@/components/chess/board";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { initGame, applyAction, legalActions, canClaimThreefold } from "@repo/chess";
 import type { EngineAction, EngineState } from "@repo/chess";
 
-export default function GamePage({ params }: { params: { roomId: string } }) {
+export default function GamePage({ params }: { params: Promise<{ roomId: string }> }) {
   const { state: wsState, send, on } = useWebSocket();
+  const resolvedParams = use(params);
+  const roomId = resolvedParams.roomId;
   const [engineState, setEngineState] = useState<EngineState | null>(null);
   const [legalMoves, setLegalMoves] = useState<{ from: string; to: string; promotion?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -47,11 +49,11 @@ export default function GamePage({ params }: { params: { roomId: string } }) {
       send({
         v: 1,
         type: "GAME_ACTION",
-        roomId: params.roomId,
+        roomId,
         payload: { seat: 0, action },
       });
     },
-    [engineState, params.roomId, refreshLegalMoves, send],
+    [engineState, roomId, refreshLegalMoves, send],
   );
 
   const handleResign = useCallback(() => {
@@ -63,10 +65,10 @@ export default function GamePage({ params }: { params: { roomId: string } }) {
     send({
       v: 1,
       type: "GAME_ACTION",
-      roomId: params.roomId,
+      roomId,
       payload: { seat: 0, action },
     });
-  }, [engineState, params.roomId, send]);
+  }, [engineState, roomId, send]);
 
   const handleDrawOffer = useCallback(() => {
     if (!engineState || engineState.gameOver || pendingDrawOffer) return;
@@ -78,10 +80,10 @@ export default function GamePage({ params }: { params: { roomId: string } }) {
     send({
       v: 1,
       type: "GAME_ACTION",
-      roomId: params.roomId,
+      roomId,
       payload: { seat: 0, action },
     });
-  }, [engineState, pendingDrawOffer, params.roomId, refreshLegalMoves, send]);
+  }, [engineState, pendingDrawOffer, roomId, refreshLegalMoves, send]);
 
   const handleDrawRespond = useCallback(
     (accept: boolean) => {
@@ -96,11 +98,11 @@ export default function GamePage({ params }: { params: { roomId: string } }) {
       send({
         v: 1,
         type: "GAME_ACTION",
-        roomId: params.roomId,
+        roomId,
         payload: { seat: 0, action },
       });
     },
-    [engineState, params.roomId, refreshLegalMoves, send],
+    [engineState, roomId, refreshLegalMoves, send],
   );
 
   if (!engineState) {
@@ -134,7 +136,7 @@ export default function GamePage({ params }: { params: { roomId: string } }) {
       <div className="w-full space-y-4 lg:w-72">
         {/* Room info */}
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-400">Room {params.roomId}</p>
+          <p className="text-xs text-gray-400">Room {roomId}</p>
           <h1 className="mt-1 text-lg font-semibold">Chess</h1>
           <div className="mt-2 flex items-center gap-2 text-sm">
             <span className={`inline-block h-2 w-2 rounded-full ${wsState === "open" ? "bg-green-500" : "bg-red-500"}`} />
@@ -198,7 +200,7 @@ export default function GamePage({ params }: { params: { roomId: string } }) {
                     send({
                       v: 1,
                       type: "GAME_ACTION",
-                      roomId: params.roomId,
+                      roomId,
                       payload: { seat: 0, action },
                     });
                   }}
