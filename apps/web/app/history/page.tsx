@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { Button, Card, Badge } from "@repo/ui";
 import { authHeaders } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -39,22 +40,28 @@ export default function HistoryPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <h1 className="mb-6 text-2xl font-bold">Match History</h1>
+    <div className="mx-auto max-w-3xl px-6 py-12">
+      <h1 className="mb-8 text-2xl font-semibold tracking-tight text-foreground">Match History</h1>
 
-      {loading && <p className="text-gray-400">Loading...</p>}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        </div>
+      )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+        <Card className="border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+          {error}
+        </Card>
       )}
 
       {!loading && !error && matches.length === 0 && (
-        <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center">
-          <p className="text-gray-400">No matches played yet.</p>
-          <Link href="/lobby" className="mt-3 inline-block text-sm font-medium text-black underline">
-            Start a game
+        <Card className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+          <p className="text-sm text-muted">No matches played yet.</p>
+          <Link href="/lobby">
+            <Button size="sm">Start a game</Button>
           </Link>
-        </div>
+        </Card>
       )}
 
       <div className="grid gap-3">
@@ -71,23 +78,18 @@ export default function HistoryPage() {
             : match.status;
 
           return (
-            <div key={match.id} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <Card key={match.id} hoverable className="flex items-center justify-between p-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="font-medium capitalize">{match.game}</h2>
-                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-gray-500">
-                    {resultLabel}
-                  </span>
+                  <h2 className="text-sm font-medium text-foreground capitalize">{match.game}</h2>
+                  <Badge variant="default">{resultLabel}</Badge>
                 </div>
-                <p className="mt-1 text-xs text-gray-400">{date} · {match.seats.length} players</p>
+                <p className="mt-1 text-xs text-muted">{date} · {match.seats.length} players</p>
               </div>
-              <Link
-                href={`/history/${match.id}`}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium transition hover:bg-gray-50"
-              >
-                Replay
+              <Link href={`/history/${match.id}`}>
+                <Button size="sm" variant="secondary">Replay</Button>
               </Link>
-            </div>
+            </Card>
           );
         })}
       </div>

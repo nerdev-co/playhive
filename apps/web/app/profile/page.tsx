@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getUser, updateProfile, logout, isLoggedIn, guestLogin } from "@/lib/auth";
+import { Button, Input, Card } from "@repo/ui";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -19,10 +20,8 @@ export default function ProfilePage() {
       setUsername(user.username);
       setDisplayName(user.displayName);
       setAvatar(user.avatar ?? "");
-      setLoading(false);
-    } else {
-      setLoading(false);
     }
+    setLoading(false);
   }, []);
 
   const handleGuestLogin = async () => {
@@ -57,8 +56,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-gray-400">
-        Loading...
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
       </div>
     );
   }
@@ -66,93 +65,71 @@ export default function ProfilePage() {
   if (!isLoggedIn()) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
-        <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="text-gray-500">Sign in or continue as guest to view your profile.</p>
-        <div className="flex gap-3">
-          <button
-            onClick={handleGuestLogin}
-            className="rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
-          >
-            Continue as Guest
-          </button>
-          <button
-            onClick={() => router.push("/")}
-            className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-          >
-            Back
-          </button>
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Profile</h1>
+          <p className="mt-2 text-sm text-muted">Sign in or continue as guest to view your profile.</p>
         </div>
-        {message && <p className="text-sm text-red-600">{message}</p>}
+        <div className="flex gap-3">
+          <Button onClick={handleGuestLogin}>Continue as Guest</Button>
+          <Button variant="secondary" onClick={() => router.push("/")}>Back</Button>
+        </div>
+        {message && <p className="text-sm text-danger">{message}</p>}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-2xl font-bold">Profile</h1>
+    <div className="mx-auto max-w-2xl px-6 py-12">
+      <h1 className="mb-8 text-2xl font-semibold tracking-tight text-foreground">Profile</h1>
 
-      <div className="mb-8 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-2xl overflow-hidden">
-          {avatar ? (
-            <img src={avatar} alt="avatar" className="h-full w-full rounded-full object-cover" />
-          ) : (
-            <span className="text-gray-400">{displayName?.[0]?.toUpperCase() ?? "?"}</span>
-          )}
+      <Card className="mb-8 p-6">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-hover text-xl font-semibold text-foreground overflow-hidden">
+            {avatar ? (
+              <img src={avatar} alt="avatar" className="h-full w-full rounded-full object-cover" />
+            ) : (
+              <span>{displayName?.[0]?.toUpperCase() ?? "?"}</span>
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">{displayName || "Guest Player"}</p>
+            <p className="text-xs text-muted">@{username}</p>
+          </div>
         </div>
-        <div>
-          <p className="font-medium">{displayName || "Guest Player"}</p>
-          <p className="text-sm text-gray-500">@{username}</p>
-        </div>
-      </div>
+      </Card>
 
-      <div className="space-y-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Username</label>
-          <input
-            value={username}
-            disabled
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500"
-          />
-          <p className="mt-1 text-[10px] text-gray-400">Username cannot be changed</p>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Display Name</label>
-          <input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Avatar URL</label>
-          <input
-            value={avatar}
-            onChange={(e) => setAvatar(e.target.value)}
-            placeholder="https://example.com/avatar.png"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
-          />
-        </div>
+      <div className="space-y-5">
+        <Input
+          label="Username"
+          value={username}
+          disabled
+        />
+        <p className="text-[10px] text-muted -mt-3">Username cannot be changed</p>
+
+        <Input
+          label="Display Name"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+        />
+
+        <Input
+          label="Avatar URL"
+          value={avatar}
+          onChange={(e) => setAvatar(e.target.value)}
+          placeholder="https://example.com/avatar.png"
+        />
 
         {message && (
-          <p className={`text-sm ${message.includes("Failed") ? "text-red-600" : "text-green-600"}`}>
+          <p className={`text-sm ${message.includes("Failed") ? "text-danger" : "text-success"}`}>
             {message}
           </p>
         )}
 
-        <div className="flex gap-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-50"
-          >
+        <div className="flex gap-3">
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Profile"}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-          >
-            Log Out
-          </button>
+          </Button>
+          <Button variant="secondary" onClick={handleLogout}>Log Out</Button>
         </div>
       </div>
     </div>

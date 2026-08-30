@@ -120,7 +120,7 @@ export function ChessBoard({
     <div className="mx-auto w-fit select-none">
       <div className="relative">
         {/* Rank labels (left) */}
-        <div className="absolute -left-5 top-0 flex h-full flex-col justify-around text-[10px] font-medium text-gray-500">
+        <div className="absolute -left-5 top-0 flex h-full flex-col justify-around text-[10px] font-medium text-muted">
           {ranks.map((r) => (
             <div key={r} className="flex h-[12.5%] items-center">
               {r + 1}
@@ -129,7 +129,7 @@ export function ChessBoard({
         </div>
 
         {/* Board */}
-        <div className="grid grid-cols-8 border border-gray-800 shadow-lg">
+        <div className="grid grid-cols-8 border border-foreground shadow-lg">
           {ranks.map((rank) =>
             files.map((file) => {
               const sq = `${String.fromCharCode(97 + file)}${rank + 1}`;
@@ -177,7 +177,7 @@ export function ChessBoard({
         </div>
 
         {/* File labels (bottom) */}
-        <div className="flex justify-around text-[10px] font-medium text-gray-500">
+        <div className="flex justify-around text-[10px] font-medium text-muted">
           {files.map((f) => (
             <div key={f} className="flex w-10 justify-center sm:w-12 md:w-14">
               {String.fromCharCode(97 + f)}
