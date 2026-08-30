@@ -15,16 +15,16 @@ export default function Home() {
             Enter Lobby
           </Link>
           <Link
-            href="/history"
+            href="/signin"
             className="rounded-lg border border-gray-200 px-6 py-3 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
           >
-            Match History
+            Sign In
           </Link>
           <Link
-            href="/profile"
+            href="/signup"
             className="rounded-lg border border-gray-200 px-6 py-3 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
           >
-            Profile
+            Create Account
           </Link>
         </div>
       </main>
