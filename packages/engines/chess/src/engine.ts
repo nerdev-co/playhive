@@ -109,7 +109,9 @@ export function applyAction(action: EngineAction): EngineResult {
         const prevTurn = currentState.turn;
         const san = moveToSAN(currentState, move);
 
-        currentState = makeMove(currentState, move);
+        // Include san in the move so makeMove stores it in moveHistory
+        const moveWithSan = { ...move, san };
+        currentState = makeMove(currentState, moveWithSan);
 
         const moveEvent: ChessEvent = {
             type: "move",

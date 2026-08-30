@@ -177,7 +177,7 @@ export function ChessBoard({
                     <span
                       draggable={!disabled}
                       onDragStart={(e) => handleDragStart(e, file, rank)}
-                      className="cursor-grab active:cursor-grabbing select-none"
+                      className={`cursor-grab active:cursor-grabbing select-none ${board[rank]![file]!.toLowerCase() === "p" ? "text-2xl sm:text-3xl md:text-3xl" : "text-3xl sm:text-4xl md:text-4xl"}`}
                       style={{
                         color: board[rank]![file] === board[rank]![file]!.toUpperCase() ? "#ffffff" : "#1a1a1a",
                         textShadow: board[rank]![file] === board[rank]![file]!.toUpperCase()

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, use } from "react";
 import { ChessBoard } from "@/components/chess/board";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { useTheme } from "@/lib/theme";
-import { initGame, applyAction, legalActions, canClaimThreefold } from "@repo/chess";
+import { initGame, applyAction, legalActions, canClaimThreefold, isInCheck } from "@repo/chess";
 import type { EngineAction, EngineState } from "@repo/chess";
 
 export default function GamePage({ params }: { params: Promise<{ roomId: string }> }) {
@@ -44,7 +44,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       const result = applyAction(action);
 
       setLastMove({ from, to });
-      setInCheck(result.state.turn === "white" ? isCheckState(result.state, "black") : isCheckState(result.state, "white"));
+      setInCheck(isInCheck(result.state));
       setEngineState(result.state);
       refreshLegalMoves(result.state);
       setPendingDrawOffer(false);
@@ -231,14 +231,4 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       </div>
     </div>
   );
-}
-
-function isCheckState(state: EngineState, _side: string): boolean {
-  try {
-    const { isInCheck, toPosition } = require("@repo/chess");
-    const pos = toPosition(state);
-    return isInCheck(pos);
-  } catch {
-    return false;
-  }
 }
