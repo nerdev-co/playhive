@@ -39,8 +39,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
   const handleMove = useCallback(
     (from: string, to: string, promotion?: string) => {
       if (!engineState || engineState.gameOver) return;
-      const promo = promotion ?? (engineState.turn === "white" && to[1] === "8" ? "q" : engineState.turn === "black" && to[1] === "1" ? "q" : undefined);
-      const action: EngineAction = { type: "MOVE", from, to, promotion: promo as "q" | "r" | "b" | "n" | undefined };
+      const action: EngineAction = { type: "MOVE", from, to, promotion: promotion as "q" | "r" | "b" | "n" | undefined };
       const result = applyAction(action);
 
       setLastMove({ from, to });

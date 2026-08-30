@@ -13,6 +13,13 @@ const SQUARE_CHECK = "#e74c3c";
 const SQUARE_LEGAL = "rgba(0,0,0,0.25)";
 const SQUARE_CAPTURE = "rgba(0,0,0,0.3)";
 
+const PROMOTION_PIECES = ["q", "r", "b", "n"] as const;
+
+interface PendingPromotion {
+  from: string;
+  to: string;
+}
+
 interface ChessBoardProps {
   fen: string;
   turn: "white" | "black";
@@ -35,6 +42,7 @@ export function ChessBoard({
   onMove,
 }: ChessBoardProps) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
   const board = useMemo(() => fenToBoard(fen), [fen]);
 
   const legalMap = useMemo(() => {
@@ -64,6 +72,26 @@ export function ChessBoard({
 
   const kingSquare = inCheck ? findKingSquare() : null;
 
+  const isPromotionMove = useCallback(
+    (from: string, to: string): boolean => {
+      const rank = parseInt(from[1]) - 1;
+      const file = from.charCodeAt(0) - 97;
+      const piece = board[rank]?.[file];
+      if (!piece) return false;
+      const isWhite = piece === piece.toUpperCase();
+      const promoRank = isWhite ? "8" : "1";
+      return piece.toLowerCase() === "p" && to[1] === promoRank;
+    },
+    [board],
+  );
+
+  const handlePromotionSelect = (piece: string) => {
+    if (!pendingPromotion) return;
+    onMove(pendingPromotion.from, pendingPromotion.to, piece);
+    setPendingPromotion(null);
+    setSelected(null);
+  };
+
   const handleSquareClick = (file: number, rank: number) => {
     if (disabled) return;
     const sq = `${String.fromCharCode(97 + file)}${rank + 1}`;
@@ -72,8 +100,12 @@ export function ChessBoard({
       const targets = legalMap.get(selected) ?? [];
       const match = targets.find((t) => t.to === sq);
       if (match) {
-        onMove(selected, sq, match.promotion);
-        setSelected(null);
+        if (isPromotionMove(selected, sq)) {
+          setPendingPromotion({ from: selected, to: sq });
+        } else {
+          onMove(selected, sq, match.promotion);
+          setSelected(null);
+        }
         return;
       }
     }
@@ -119,7 +151,11 @@ export function ChessBoard({
     const targets = legalMap.get(from) ?? [];
     const match = targets.find((t) => t.to === to);
     if (match) {
-      onMove(from, to, match.promotion);
+      if (isPromotionMove(from, to)) {
+        setPendingPromotion({ from, to });
+      } else {
+        onMove(from, to, match.promotion);
+      }
     }
     setSelected(null);
   };
@@ -143,7 +179,7 @@ export function ChessBoard({
         </div>
 
         {/* Board */}
-        <div className="grid grid-cols-8 rounded-sm overflow-hidden shadow-lg" style={{ border: "1px solid #27272a" }}>
+        <div className="relative grid grid-cols-8 rounded-sm overflow-hidden shadow-lg" style={{ border: "1px solid #27272a" }}>
           {ranks.map((rank) =>
             files.map((file) => {
               const sq = `${String.fromCharCode(97 + file)}${rank + 1}`;
@@ -177,7 +213,9 @@ export function ChessBoard({
                     <span
                       draggable={!disabled}
                       onDragStart={(e) => handleDragStart(e, file, rank)}
-                      className={`cursor-grab active:cursor-grabbing select-none ${board[rank]![file]!.toLowerCase() === "p" ? "text-2xl sm:text-3xl md:text-3xl" : "text-3xl sm:text-4xl md:text-4xl"}`}
+                      className={`cursor-grab active:cursor-grabbing select-none ${
+                        board[rank]![file] === "p" ? "text-[0.75em]" : ""
+                      }`}
                       style={{
                         color: board[rank]![file] === board[rank]![file]!.toUpperCase() ? "#ffffff" : "#1a1a1a",
                         textShadow: board[rank]![file] === board[rank]![file]!.toUpperCase()
@@ -191,6 +229,38 @@ export function ChessBoard({
                 </div>
               );
             }),
+          )}
+
+          {/* Promotion picker overlay */}
+          {pendingPromotion && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center bg-black/50"
+              onClick={() => setPendingPromotion(null)}
+            >
+              <div
+                className="flex gap-1 rounded-lg border border-neutral-700 bg-neutral-900 p-2 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {PROMOTION_PIECES.map((piece) => {
+                  const pieceChar = turn === "white" ? piece.toUpperCase() : piece;
+                  return (
+                    <button
+                      key={piece}
+                      onClick={() => handlePromotionSelect(piece)}
+                      className="flex h-12 w-12 items-center justify-center rounded-md text-2xl transition-all duration-150 hover:bg-neutral-700 active:scale-95 sm:h-14 sm:w-14 sm:text-3xl"
+                      style={{
+                        color: turn === "white" ? "#ffffff" : "#1a1a1a",
+                        textShadow: turn === "white"
+                          ? "0 1px 3px rgba(0,0,0,0.5)"
+                          : "0 1px 2px rgba(255,255,255,0.3)",
+                      }}
+                    >
+                      {PIECE_SYMBOLS[pieceChar]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
 

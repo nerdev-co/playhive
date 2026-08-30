@@ -109,9 +109,15 @@ export function applyAction(action: EngineAction): EngineResult {
         const prevTurn = currentState.turn;
         const san = moveToSAN(currentState, move);
 
-        // Include san in the move so makeMove stores it in moveHistory
-        const moveWithSan = { ...move, san };
-        currentState = makeMove(currentState, moveWithSan);
+        currentState = makeMove(currentState, move);
+
+        // Stamp SAN + check/checkmate onto the history entry
+        const historyEntry = currentState.moveHistory[currentState.moveHistory.length - 1];
+        const givesCheck = isInCheck(currentState);
+        if (historyEntry) {
+            historyEntry.san = san;
+            historyEntry.check = givesCheck;
+        }
 
         const moveEvent: ChessEvent = {
             type: "move",
@@ -120,8 +126,8 @@ export function applyAction(action: EngineAction): EngineResult {
                 to: action.to,
                 promotion: action.promotion,
                 san,
-                capture: currentState.moveHistory[currentState.moveHistory.length - 1]?.capture ?? false,
-                check: isInCheck(currentState),
+                capture: historyEntry?.capture ?? false,
+                check: givesCheck,
                 checkmate: false,
             },
             fen: currentState.fen,
@@ -134,13 +140,14 @@ export function applyAction(action: EngineAction): EngineResult {
         const hash = computeHash(board, currentState.turn, currentState.castling, currentState.enPassant);
         repetitions.add(hash);
 
-        if (isInCheck(currentState)) {
+        if (givesCheck) {
             events.push({ type: "check", fen: currentState.fen });
             if (isCheckmate(currentState)) {
                 currentState.gameOver = true;
                 currentState.result = prevTurn;
                 currentState.resultReason = "checkmate";
                 moveEvent.move.checkmate = true;
+                if (historyEntry) historyEntry.checkmate = true;
                 events.push({ type: "checkmate", winner: prevTurn, fen: currentState.fen });
             }
         } else if (isStalemate(currentState)) {
