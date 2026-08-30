@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getUser, updateProfile, logout, guestLogin, isLoggedIn } from "@/lib/auth";
+import { getUser, updateProfile, logout, isLoggedIn, guestLogin } from "@/lib/auth";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -11,6 +11,7 @@ export default function ProfilePage() {
   const [avatar, setAvatar] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const user = getUser();
@@ -18,14 +19,24 @@ export default function ProfilePage() {
       setUsername(user.username);
       setDisplayName(user.displayName);
       setAvatar(user.avatar ?? "");
-    } else if (!isLoggedIn()) {
-      guestLogin().then((res) => {
-        setUsername(res.user.username);
-        setDisplayName(res.user.displayName);
-        setAvatar(res.user.avatar ?? "");
-      });
+      setLoading(false);
+    } else {
+      setLoading(false);
     }
   }, []);
+
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    try {
+      const res = await guestLogin();
+      setUsername(res.user.username);
+      setDisplayName(res.user.displayName);
+      setAvatar(res.user.avatar ?? "");
+    } catch {
+      setMessage("Could not connect to server");
+    }
+    setLoading(false);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -43,6 +54,38 @@ export default function ProfilePage() {
     logout();
     router.push("/");
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-gray-400">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!isLoggedIn()) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
+        <h1 className="text-2xl font-bold">Profile</h1>
+        <p className="text-gray-500">Sign in or continue as guest to view your profile.</p>
+        <div className="flex gap-3">
+          <button
+            onClick={handleGuestLogin}
+            className="rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
+          >
+            Continue as Guest
+          </button>
+          <button
+            onClick={() => router.push("/")}
+            className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+          >
+            Back
+          </button>
+        </div>
+        {message && <p className="text-sm text-red-600">{message}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl p-6">

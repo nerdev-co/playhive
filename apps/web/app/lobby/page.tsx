@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useWebSocket } from "@/lib/ws/hooks";
+import { getUser, guestLogin, isLoggedIn } from "@/lib/auth";
 import type { RoomSnapshot, PlayerInfo } from "@repo/protocol";
 
 export default function LobbyPage() {
@@ -12,6 +13,24 @@ export default function LobbyPage() {
   const [player, setPlayer] = useState<PlayerInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
+  const [authReady, setAuthReady] = useState(false);
+
+  // Auto-guest on first visit
+  useEffect(() => {
+    if (isLoggedIn()) {
+      setPlayer(getUser() as PlayerInfo);
+      setAuthReady(true);
+      return;
+    }
+    guestLogin()
+      .then((res) => {
+        setPlayer(res.user as PlayerInfo);
+        setAuthReady(true);
+      })
+      .catch(() => {
+        setAuthReady(true);
+      });
+  }, []);
 
   useEffect(() => {
     const unsub1 = on("ROOM_UPDATE", (payload) => {
@@ -71,6 +90,12 @@ export default function LobbyPage() {
 
   return (
     <div className="mx-auto max-w-4xl p-6">
+      {!authReady ? (
+        <div className="flex min-h-screen items-center justify-center text-gray-400">
+          Connecting...
+        </div>
+      ) : (
+      <>
       <header className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Lobby</h1>

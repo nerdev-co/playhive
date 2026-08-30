@@ -3,13 +3,19 @@
 import { useState, useEffect, useCallback, use } from "react";
 import { ChessBoard } from "@/components/chess/board";
 import { useWebSocket } from "@/lib/ws/hooks";
+import { useTheme } from "@/lib/theme";
 import { initGame, applyAction, legalActions, canClaimThreefold } from "@repo/chess";
 import type { EngineAction, EngineState } from "@repo/chess";
 
 export default function GamePage({ params }: { params: Promise<{ roomId: string }> }) {
   const { state: wsState, send, on } = useWebSocket();
+  const { setTheme } = useTheme();
   const resolvedParams = use(params);
   const roomId = resolvedParams.roomId;
+
+  useEffect(() => {
+    setTheme("game");
+  }, [setTheme]);
   const [engineState, setEngineState] = useState<EngineState | null>(null);
   const [legalMoves, setLegalMoves] = useState<{ from: string; to: string; promotion?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
