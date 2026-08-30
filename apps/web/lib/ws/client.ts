@@ -9,6 +9,7 @@ export class WsClient {
   private retries = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = false;
+  private intentionalClose = false;
   private queue: WsEnvelope[] = [];
   private listeners = new Map<string, Set<Listener<unknown>>>();
   private opts: Required<WsClientOptions>;
@@ -36,10 +37,20 @@ export class WsClient {
   }
 
   connect(): void {
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
-      return;
+    if (this.ws) {
+      const readyState = this.ws.readyState;
+      if (readyState === WebSocket.OPEN || readyState === WebSocket.CONNECTING) {
+        return;
+      }
+      // Clean up stale reference (e.g. after React strict mode disconnect)
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      this.ws.onmessage = null;
+      this.ws.onopen = null;
+      this.ws = null;
     }
 
+    this.intentionalClose = false;
     this.shouldReconnect = this.opts.reconnect;
     this.state = "connecting";
     this.emit("state", this.state);
@@ -55,6 +66,7 @@ export class WsClient {
     }
 
     this.ws.onopen = () => {
+      if (this.intentionalClose) return;
       this.state = "open";
       this.retries = 0;
       this.emit("state", this.state);
@@ -63,6 +75,7 @@ export class WsClient {
     };
 
     this.ws.onclose = (event) => {
+      if (this.intentionalClose) return;
       this.state = "closed";
       this.emit("state", this.state);
       this.opts.onClose(event);
@@ -73,12 +86,14 @@ export class WsClient {
     };
 
     this.ws.onerror = (event) => {
+      if (this.intentionalClose) return;
       this.state = "error";
       this.emit("state", this.state);
       this.opts.onError(event);
     };
 
     this.ws.onmessage = (event) => {
+      if (this.intentionalClose) return;
       let data: unknown;
       try {
         data = JSON.parse(event.data);
@@ -93,13 +108,21 @@ export class WsClient {
   }
 
   disconnect(): void {
+    this.intentionalClose = true;
     this.shouldReconnect = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.ws) {
-      this.ws.close(1000, "Client disconnect");
+      // Remove handlers first to prevent onclose from triggering reconnect
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      this.ws.onmessage = null;
+      this.ws.onopen = null;
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close(1000, "Client disconnect");
+      }
       this.ws = null;
     }
     this.state = "closed";
