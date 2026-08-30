@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getUser, updateProfile, logout, isLoggedIn, guestLogin } from "@/lib/auth";
-import { Button, Input, Card } from "@repo/ui";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -20,8 +19,10 @@ export default function ProfilePage() {
       setUsername(user.username);
       setDisplayName(user.displayName);
       setAvatar(user.avatar ?? "");
+      setLoading(false);
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const handleGuestLogin = async () => {
@@ -42,7 +43,7 @@ export default function ProfilePage() {
     setMessage(null);
     try {
       await updateProfile({ displayName, avatar: avatar || undefined });
-      setMessage("Profile saved");
+      setMessage("Saved");
     } catch {
       setMessage("Failed to save");
     }
@@ -57,81 +58,99 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-700 border-t-neutral-400" />
       </div>
     );
   }
 
   if (!isLoggedIn()) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Profile</h1>
-          <p className="mt-2 text-sm text-muted">Sign in or continue as guest to view your profile.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6">
+        <h1 className="text-lg font-semibold text-white">Profile</h1>
+        <p className="text-sm text-neutral-500">Sign in to view your profile.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={handleGuestLogin}
+            className="rounded-lg bg-indigo-500 px-4 py-2 text-xs font-medium text-white transition-all duration-150 hover:bg-indigo-400 active:scale-[0.98]"
+          >
+            Play as Guest
+          </button>
+          <button
+            onClick={() => router.push("/")}
+            className="rounded-lg border border-neutral-800 px-4 py-2 text-xs font-medium text-neutral-400 transition-colors hover:text-white"
+          >
+            Back
+          </button>
         </div>
-        <div className="flex gap-3">
-          <Button onClick={handleGuestLogin}>Continue as Guest</Button>
-          <Button variant="secondary" onClick={() => router.push("/")}>Back</Button>
-        </div>
-        {message && <p className="text-sm text-danger">{message}</p>}
+        {message && <p className="text-xs text-red-400">{message}</p>}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-12">
-      <h1 className="mb-8 text-2xl font-semibold tracking-tight text-foreground">Profile</h1>
-
-      <Card className="mb-8 p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-hover text-xl font-semibold text-foreground overflow-hidden">
-            {avatar ? (
-              <img src={avatar} alt="avatar" className="h-full w-full rounded-full object-cover" />
-            ) : (
-              <span>{displayName?.[0]?.toUpperCase() ?? "?"}</span>
-            )}
-          </div>
-          <div>
-            <p className="text-sm font-medium text-foreground">{displayName || "Guest Player"}</p>
-            <p className="text-xs text-muted">@{username}</p>
-          </div>
+    <div className="mx-auto max-w-xs px-6 py-16">
+      <div className="animate-fade-in mb-8 text-center">
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-800 text-lg font-semibold text-neutral-300 overflow-hidden">
+          {avatar ? (
+            <img src={avatar} alt="" className="h-full w-full object-cover" />
+          ) : (
+            displayName?.[0]?.toUpperCase() ?? "?"
+          )}
         </div>
-      </Card>
+        <h1 className="text-sm font-semibold text-white">{displayName || "Guest"}</h1>
+        <p className="text-[11px] text-neutral-500">@{username}</p>
+      </div>
 
-      <div className="space-y-5">
-        <Input
-          label="Username"
-          value={username}
-          disabled
-        />
-        <p className="text-[10px] text-muted -mt-3">Username cannot be changed</p>
-
-        <Input
-          label="Display Name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-        />
-
-        <Input
-          label="Avatar URL"
-          value={avatar}
-          onChange={(e) => setAvatar(e.target.value)}
-          placeholder="https://example.com/avatar.png"
-        />
+      <form onSubmit={(e: React.FormEvent) => { e.preventDefault(); handleSave(); }} className="animate-fade-in-up delay-1 space-y-3">
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-neutral-500">Username</label>
+          <input
+            value={username}
+            disabled
+            className="w-full rounded-lg border border-neutral-800 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-500"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-neutral-500">Display Name</label>
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-neutral-700"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-neutral-500">Avatar URL</label>
+          <input
+            value={avatar}
+            onChange={(e) => setAvatar(e.target.value)}
+            placeholder="https://..."
+            className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition-colors focus:border-neutral-700"
+          />
+        </div>
 
         {message && (
-          <p className={`text-sm ${message.includes("Failed") ? "text-danger" : "text-success"}`}>
+          <p className={`text-xs ${message === "Saved" ? "text-emerald-400" : "text-red-400"}`}>
             {message}
           </p>
         )}
 
-        <div className="flex gap-3">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Profile"}
-          </Button>
-          <Button variant="secondary" onClick={handleLogout}>Log Out</Button>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex-1 rounded-lg bg-indigo-500 py-2 text-xs font-medium text-white transition-all duration-150 hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="rounded-lg border border-neutral-800 px-4 py-2 text-xs font-medium text-neutral-400 transition-colors hover:text-white"
+          >
+            Log out
+          </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

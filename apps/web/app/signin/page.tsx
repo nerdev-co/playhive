@@ -27,59 +27,60 @@ export default function SigninPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-8 text-center text-2xl font-bold">Sign In</h1>
+      <div className="w-full max-w-xs">
+        <div className="animate-fade-in mb-8 text-center">
+          <h1 className="text-lg font-semibold text-white">Sign in to PlayHive</h1>
+          <p className="mt-1.5 text-xs text-neutral-500">Welcome back</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="animate-fade-in-up delay-1 space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
-              Username
-            </label>
+            <label className="mb-1 block text-[11px] font-medium text-neutral-500">Username</label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition-colors focus:border-neutral-700"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
-              Password
-            </label>
+            <label className="mb-1 block text-[11px] font-medium text-neutral-500">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition-colors focus:border-neutral-700"
             />
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>
+            <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:opacity-50"
+            className="w-full rounded-lg bg-indigo-500 py-2.5 text-sm font-medium text-white transition-all duration-150 hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-black underline">
-            Sign up
-          </Link>
-        </p>
-        <p className="mt-2 text-center text-sm text-gray-500">
-          Or{" "}
-          <Link href="/lobby" className="font-medium text-black underline">
-            continue as guest
-          </Link>
-        </p>
+        <div className="animate-fade-in delay-2 mt-6 space-y-2 text-center text-xs text-neutral-500">
+          <p>
+            No account?{" "}
+            <Link href="/signup" className="text-neutral-300 transition-colors hover:text-white">
+              Sign up
+            </Link>
+          </p>
+          <p>
+            Or{" "}
+            <Link href="/lobby" className="text-neutral-300 transition-colors hover:text-white">
+              play as guest
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

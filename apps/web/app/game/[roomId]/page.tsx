@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, use } from "react";
 import { ChessBoard } from "@/components/chess/board";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { useTheme } from "@/lib/theme";
-import { Button, Badge } from "@repo/ui";
 import { initGame, applyAction, legalActions, canClaimThreefold } from "@repo/chess";
 import type { EngineAction, EngineState } from "@repo/chess";
 
@@ -14,13 +13,10 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
   const resolvedParams = use(params);
   const roomId = resolvedParams.roomId;
 
-  useEffect(() => {
-    setTheme("game");
-  }, [setTheme]);
+  useEffect(() => { setTheme("game"); }, [setTheme]);
 
   const [engineState, setEngineState] = useState<EngineState | null>(null);
   const [legalMoves, setLegalMoves] = useState<{ from: string; to: string; promotion?: string }[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [inCheck, setInCheck] = useState(false);
   const [pendingDrawOffer, setPendingDrawOffer] = useState(false);
@@ -54,12 +50,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       setPendingDrawOffer(false);
       setDrawOfferFrom(null);
 
-      send({
-        v: 1,
-        type: "GAME_ACTION",
-        roomId,
-        payload: { seat: 0, action },
-      });
+      send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
     },
     [engineState, roomId, refreshLegalMoves, send],
   );
@@ -70,12 +61,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     const result = applyAction(action);
     setEngineState(result.state);
     setLastMove(null);
-    send({
-      v: 1,
-      type: "GAME_ACTION",
-      roomId,
-      payload: { seat: 0, action },
-    });
+    send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
   }, [engineState, roomId, send]);
 
   const handleDrawOffer = useCallback(() => {
@@ -85,38 +71,27 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     setEngineState(result.state);
     setPendingDrawOffer(true);
     refreshLegalMoves(result.state);
-    send({
-      v: 1,
-      type: "GAME_ACTION",
-      roomId,
-      payload: { seat: 0, action },
-    });
+    send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
   }, [engineState, pendingDrawOffer, roomId, refreshLegalMoves, send]);
 
   const handleDrawRespond = useCallback(
     (accept: boolean) => {
       if (!engineState) return;
-      const actionType = accept ? "DRAW_ACCEPT" : "DRAW_DECLINE";
-      const action: EngineAction = { type: actionType as "DRAW_ACCEPT" | "DRAW_DECLINE" };
+      const action: EngineAction = { type: accept ? "DRAW_ACCEPT" : "DRAW_DECLINE" };
       const result = applyAction(action);
       setEngineState(result.state);
       setDrawOfferFrom(null);
       setPendingDrawOffer(false);
       refreshLegalMoves(result.state);
-      send({
-        v: 1,
-        type: "GAME_ACTION",
-        roomId,
-        payload: { seat: 0, action },
-      });
+      send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
     },
     [engineState, roomId, refreshLegalMoves, send],
   );
 
   if (!engineState) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+      <div className="flex min-h-screen items-center justify-center bg-neutral-950">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-700 border-t-neutral-400" />
       </div>
     );
   }
@@ -130,8 +105,8 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     : null;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start lg:gap-10">
-      {/* Board area */}
+    <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start lg:gap-8">
+      {/* Board */}
       <div className="flex-1">
         <ChessBoard
           fen={engineState.fen}
@@ -145,96 +120,108 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       </div>
 
       {/* Sidebar */}
-      <div className="w-full space-y-4 lg:w-64">
-        <div className="space-y-3">
+      <div className="w-full space-y-4 lg:w-56">
+        {/* Header */}
+        <div className="animate-fade-in">
           <div className="flex items-center justify-between">
-            <h1 className="text-base font-semibold text-foreground">Chess</h1>
-            <Badge variant="default">{roomId}</Badge>
+            <h1 className="text-sm font-semibold text-white">Chess</h1>
+            <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] font-mono text-neutral-500">
+              {roomId.slice(0, 8)}
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted">
-            <span className={`h-1.5 w-1.5 rounded-full ${wsState === "open" ? "bg-success" : "bg-danger"}`} />
-            <span className="capitalize">{wsState}</span>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-neutral-500">
+            <span className={`h-1 w-1 rounded-full ${wsState === "open" ? "bg-emerald-500" : "bg-red-500"}`} />
+            {wsState}
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${engineState.turn === "white" ? "bg-surface-hover text-foreground" : "bg-foreground text-background"}`}>
+        {/* Turn */}
+        <div className="animate-fade-in delay-1 flex items-center gap-2.5 rounded-lg border border-neutral-800 bg-neutral-900/60 p-3">
+          <div className={`flex h-7 w-7 items-center justify-center rounded-md text-[11px] font-bold ${engineState.turn === "white" ? "bg-neutral-100 text-neutral-900" : "bg-neutral-800 text-white"}`}>
             {engineState.turn === "white" ? "W" : "B"}
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground capitalize">{engineState.turn} to move</p>
-            <p className="text-xs text-muted">Move {engineState.fullmoveNumber}</p>
+            <p className="text-xs font-medium text-white capitalize">{engineState.turn} to move</p>
+            <p className="text-[10px] text-neutral-500">Move {engineState.fullmoveNumber}</p>
           </div>
         </div>
 
+        {/* Result */}
         {resultText && (
-          <div className="rounded-lg border border-warning/20 bg-warning/10 px-4 py-3 text-sm font-medium text-warning">
+          <div className="animate-scale-in rounded-lg border border-amber-800/30 bg-amber-500/10 px-3 py-2.5 text-xs font-medium text-amber-400">
             {resultText}
           </div>
         )}
 
+        {/* Draw offer */}
         {drawOfferFrom && (
-          <div className="rounded-lg border border-accent/20 bg-accent/10 px-4 py-3">
-            <p className="mb-3 text-xs font-medium text-accent">Opponent offers a draw</p>
+          <div className="animate-scale-in rounded-lg border border-indigo-800/30 bg-indigo-500/10 p-3">
+            <p className="mb-2 text-[11px] font-medium text-indigo-400">Draw offered</p>
             <div className="flex gap-2">
-              <Button size="sm" onClick={() => handleDrawRespond(true)}>Accept</Button>
-              <Button size="sm" variant="secondary" onClick={() => handleDrawRespond(false)}>Decline</Button>
+              <button
+                onClick={() => handleDrawRespond(true)}
+                className="rounded-md bg-indigo-500 px-3 py-1 text-[11px] font-medium text-white transition-all duration-150 hover:bg-indigo-400 active:scale-[0.98]"
+              >
+                Accept
+              </button>
+              <button
+                onClick={() => handleDrawRespond(false)}
+                className="rounded-md border border-neutral-700 px-3 py-1 text-[11px] font-medium text-neutral-400 transition-colors hover:text-white"
+              >
+                Decline
+              </button>
             </div>
           </div>
         )}
 
+        {/* Actions */}
         {!isGameOver && (
-          <div className="space-y-2">
+          <div className="animate-fade-in delay-2 space-y-1.5">
             {canThreefold && (
-              <Button
-                variant="success"
-                className="w-full"
+              <button
                 onClick={() => {
                   const action: EngineAction = { type: "DRAW_ACCEPT" };
                   const result = applyAction(action);
                   setEngineState(result.state);
                   refreshLegalMoves(result.state);
-                  send({
-                    v: 1,
-                    type: "GAME_ACTION",
-                    roomId,
-                    payload: { seat: 0, action },
-                  });
+                  send({ v: 1, type: "GAME_ACTION", roomId, payload: { seat: 0, action } });
                 }}
+                className="w-full rounded-lg border border-emerald-800/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-400 transition-all duration-150 hover:bg-emerald-500/20 active:scale-[0.98]"
               >
                 Claim Draw (3-fold)
-              </Button>
+              </button>
             )}
-            <Button
-              variant="secondary"
-              className="w-full"
+            <button
               onClick={handleDrawOffer}
               disabled={pendingDrawOffer}
+              className="w-full rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-[11px] font-medium text-neutral-400 transition-all duration-150 hover:border-neutral-700 hover:text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {pendingDrawOffer ? "Draw offered..." : "Offer Draw"}
-            </Button>
-            <Button
-              variant="danger"
-              className="w-full"
+              {pendingDrawOffer ? "Offered..." : "Offer Draw"}
+            </button>
+            <button
               onClick={handleResign}
+              className="w-full rounded-lg border border-red-900/30 bg-red-500/10 px-3 py-2 text-[11px] font-medium text-red-400 transition-all duration-150 hover:bg-red-500/20 active:scale-[0.98]"
             >
               Resign
-            </Button>
+            </button>
           </div>
         )}
 
+        {/* Move list */}
         {engineState.moveHistory.length > 0 && (
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">Moves</p>
-            <div className="max-h-52 space-y-0.5 overflow-y-auto font-mono text-xs">
+          <div className="animate-fade-in delay-3">
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-widest text-neutral-600">
+              Moves
+            </p>
+            <div className="max-h-48 space-y-px overflow-y-auto font-mono text-[11px]">
               {Array.from({ length: Math.ceil(engineState.moveHistory.length / 2) }, (_, i) => {
                 const white = engineState.moveHistory[i * 2];
                 const black = engineState.moveHistory[i * 2 + 1];
                 return (
-                  <div key={i} className="flex gap-2">
-                    <span className="w-6 text-muted">{i + 1}.</span>
-                    <span className="w-16">{white?.san ?? ""}</span>
-                    <span className="w-16 text-muted">{black?.san ?? ""}</span>
+                  <div key={i} className="flex gap-2 py-0.5">
+                    <span className="w-5 text-neutral-600">{i + 1}.</span>
+                    <span className="w-14 text-neutral-300">{white?.san ?? ""}</span>
+                    <span className="w-14 text-neutral-500">{black?.san ?? ""}</span>
                   </div>
                 );
               })}
