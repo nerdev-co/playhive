@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useWebSocket } from "@/lib/ws/hooks";
 import type { RoomSnapshot, PlayerInfo } from "@repo/protocol";
 
 export default function LobbyPage() {
+  const router = useRouter();
   const { state, send, on } = useWebSocket();
   const [rooms, setRooms] = useState<RoomSnapshot[]>([]);
   const [player, setPlayer] = useState<PlayerInfo | null>(null);
@@ -48,7 +50,16 @@ export default function LobbyPage() {
     setShowCreate(false);
   };
 
-  const joinRoom = () => {
+  const joinRoom = (roomId: string) => {
+    send({
+      v: 1,
+      type: "JOIN_ROOM",
+      payload: { roomId, media: { voice: false, video: false } },
+    });
+    router.push(`/game/${roomId}`);
+  };
+
+  const joinByCode = () => {
     if (!inviteCode.trim()) return;
     send({
       v: 1,
@@ -63,59 +74,85 @@ export default function LobbyPage() {
       <header className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Lobby</h1>
-          <p className="text-gray-500 text-sm">Connection: {state}</p>
+          <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+            <span className={`inline-block h-2 w-2 rounded-full ${state === "open" ? "bg-green-500" : "bg-red-500"}`} />
+            {state}
+          </div>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="rounded bg-black px-4 py-2 text-white hover:bg-gray-800"
+          className="rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800"
         >
           Create Room
         </button>
       </header>
 
       {player && (
-        <div className="mb-6 flex items-center gap-4 rounded border p-4">
-          <div className="h-10 w-10 rounded-full bg-gray-200" />
+        <div className="mb-6 flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-600">
+            {player.displayName?.[0]?.toUpperCase() ?? "?"}
+          </div>
           <div>
             <p className="font-medium">{player.displayName}</p>
-            <p className="text-xs text-gray-500">@{player.username}</p>
+            <p className="text-xs text-gray-400">@{player.username}</p>
           </div>
         </div>
       )}
 
-      <section className="mb-6">
-        <h2 className="mb-3 text-lg font-semibold">Join by invite code</h2>
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-400">Join by invite code</h2>
         <div className="flex gap-2">
           <input
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && joinByCode()}
             placeholder="Enter invite code"
-            className="flex-1 rounded border px-3 py-2"
+            className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm shadow-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
           />
-          <button onClick={joinRoom} className="rounded bg-black px-4 py-2 text-white hover:bg-gray-800">
+          <button
+            onClick={joinByCode}
+            className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium shadow-sm transition hover:bg-gray-50"
+          >
             Join
           </button>
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Available Rooms</h2>
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-400">Available Rooms</h2>
         {rooms.length === 0 ? (
-          <p className="text-gray-500">No rooms available. Create one to get started.</p>
+          <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center">
+            <p className="text-gray-400">No rooms available.</p>
+            <p className="mt-1 text-sm text-gray-300">Create one to get started.</p>
+          </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {rooms.map((room) => (
-              <div key={room.id} className="rounded border p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">{room.name}</h3>
-                  <span className="rounded bg-gray-100 px-2 py-1 text-xs">{room.gameType}</span>
+          <div className="grid gap-3 md:grid-cols-2">
+            {rooms.map((room) => {
+              const seatsTaken = room.seats.filter((s) => s.playerId).length;
+              const isFull = seatsTaken >= room.maxPlayers;
+              return (
+                <div key={room.id} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">{room.name}</h3>
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-gray-500">
+                        {room.gameType}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {seatsTaken} / {room.maxPlayers} players · {room.status}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => joinRoom(room.id)}
+                    disabled={isFull}
+                    className="rounded-lg bg-black px-4 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    {isFull ? "Full" : "Join"}
+                  </button>
                 </div>
-                <p className="mt-2 text-sm text-gray-500">
-                  {room.seats.filter((s) => s.playerId).length} / {room.maxPlayers} players
-                </p>
-                <p className="text-xs text-gray-400">Status: {room.status}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -142,30 +179,29 @@ function CreateRoomDialog({
   const [isPrivate, setIsPrivate] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded bg-white p-6">
-        <h2 className="mb-4 text-xl font-semibold">Create Room</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
+        <h2 className="mb-5 text-lg font-semibold">Create Room</h2>
         <div className="mb-4">
-          <label className="mb-1 block text-sm font-medium">Game</label>
+          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">Game</label>
           <select
             value={game}
             onChange={(e) => setGame(e.target.value)}
-            className="w-full rounded border px-3 py-2"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
           >
             <option value="chess">Chess</option>
             <option value="ludo">Ludo</option>
-            <option value="tic-tac-toe">Tic Tac Toe</option>
           </select>
         </div>
         <div className="mb-4">
-          <label className="mb-1 block text-sm font-medium">Max Players</label>
+          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">Max Players</label>
           <input
             type="number"
-            min={1}
+            min={2}
             max={8}
             value={maxPlayers}
             onChange={(e) => setMaxPlayers(Number(e.target.value))}
-            className="w-full rounded border px-3 py-2"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
           />
         </div>
         <div className="mb-6 flex items-center gap-2">
@@ -174,14 +210,17 @@ function CreateRoomDialog({
             type="checkbox"
             checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300"
           />
-          <label htmlFor="private" className="text-sm">Private room</label>
+          <label htmlFor="private" className="text-sm text-gray-600">Private room (invite only)</label>
         </div>
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="rounded border px-4 py-2 hover:bg-gray-50">Cancel</button>
+          <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50">
+            Cancel
+          </button>
           <button
             onClick={() => onCreate(game, maxPlayers, isPrivate)}
-            className="rounded bg-black px-4 py-2 text-white hover:bg-gray-800"
+            className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
           >
             Create
           </button>

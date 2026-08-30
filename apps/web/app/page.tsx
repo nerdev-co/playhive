@@ -1,58 +1,32 @@
-import Image, { type ImageProps } from "next/image";
-import { Button } from "@repo/ui/button";
 import Link from "next/link";
-import styles from "./page.module.css";
-
-type Props = Omit<ImageProps, "src"> & {
-  srcLight: string;
-  srcDark: string;
-};
-
-const ThemeImage = (props: Props) => {
-  const { srcLight, srcDark, ...rest } = props;
-
-  return (
-    <>
-      <Image {...rest} src={srcLight} className="imgLight" />
-      <Image {...rest} src={srcDark} className="imgDark" />
-    </>
-  );
-};
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <ThemeImage
-          className={styles.logo}
-          srcLight="turborepo-dark.svg"
-          srcDark="turborepo-light.svg"
-          alt="PlayHive logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>apps/web/app/page.tsx</code>
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6">
+      <main className="mx-auto max-w-lg text-center">
+        <h1 className="text-4xl font-bold tracking-tight text-gray-900">PlayHive</h1>
+        <p className="mt-3 text-gray-500">Real-time board games with friends.</p>
 
-        <div className={`${styles.ctas} flex flex-col gap-3`}>
-          <Link href="/lobby" className={styles.primary}>
+        <div className="mt-10 flex flex-col gap-3">
+          <Link
+            href="/lobby"
+            className="rounded-lg bg-black px-6 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800"
+          >
             Enter Lobby
           </Link>
-          <Link href="/history" className={styles.secondary}>
+          <Link
+            href="/history"
+            className="rounded-lg border border-gray-200 px-6 py-3 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+          >
             Match History
           </Link>
-          <Link href="/profile" className={styles.secondary}>
+          <Link
+            href="/profile"
+            className="rounded-lg border border-gray-200 px-6 py-3 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+          >
             Profile
           </Link>
         </div>
-        <Button appName="web" className={styles.secondary}>
-          Open alert
-        </Button>
       </main>
     </div>
   );
