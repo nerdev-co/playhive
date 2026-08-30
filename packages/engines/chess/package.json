@@ -1,9 +1,18 @@
 {
-  "name": "chess",
-  "module": "src/index.ts",
-  "type": "module",
+  "name": "@repo/chess",
+  "version": "0.0.0",
   "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit"
+  },
   "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
     "@types/bun": "latest"
   },
   "peerDependencies": {
