@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useWebSocket } from "@/lib/ws/hooks";
-import { getUser, guestLogin, isLoggedIn } from "@/lib/auth";
+import { getUser, guestLogin, isLoggedIn, getToken } from "@/lib/auth";
 import { Button, Input, Badge, Card } from "@repo/ui";
 import type { RoomSnapshot, PlayerInfo } from "@repo/protocol";
 
 export default function LobbyPage() {
   const router = useRouter();
-  const { state, send, on } = useWebSocket();
+  const { state, send, on, authenticate } = useWebSocket();
   const [rooms, setRooms] = useState<RoomSnapshot[]>([]);
   const [player, setPlayer] = useState<PlayerInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -18,14 +18,20 @@ export default function LobbyPage() {
 
   useEffect(() => {
     if (isLoggedIn()) {
-      setPlayer(getUser() as PlayerInfo);
+      const user = getUser() as PlayerInfo;
+      setPlayer(user);
       setAuthReady(true);
       return;
     }
     guestLogin()
       .then((res) => {
-        setPlayer(res.user as PlayerInfo);
+        const user = res.user as PlayerInfo;
+        setPlayer(user);
         setAuthReady(true);
+        const token = getToken();
+        if (token) {
+          authenticate(token);
+        }
       })
       .catch(() => {
         setAuthReady(true);
@@ -33,9 +39,10 @@ export default function LobbyPage() {
   }, []);
 
   useEffect(() => {
-    const unsub1 = on("ROOM_UPDATE", (payload) => {
+    const unsub1 = on("ROOM_UPDATE", (envelope) => {
+      const payload = (envelope as { payload: { room: RoomSnapshot } }).payload;
       if (payload && typeof payload === "object" && "room" in payload) {
-        const room = (payload as { room: RoomSnapshot }).room;
+        const room = payload.room;
         setRooms((prev) => {
           const idx = prev.findIndex((r) => r.id === room.id);
           if (idx >= 0) {
@@ -48,16 +55,17 @@ export default function LobbyPage() {
       }
     });
 
-    const unsub2 = on("PLAYER_JOINED", (payload) => {
+    const unsub2 = on("PLAYER_JOINED", (envelope) => {
+      const payload = (envelope as { payload: { player: PlayerInfo } }).payload;
       if (payload && typeof payload === "object" && "player" in payload) {
-        setPlayer((payload as { player: PlayerInfo }).player);
+        setPlayer(payload.player);
       }
     });
 
-    const unsub3 = on("ROOM_CREATED", (payload) => {
+    const unsub3 = on("ROOM_CREATED", (envelope) => {
+      const payload = (envelope as { payload: { roomId: string } }).payload;
       if (payload && typeof payload === "object" && "roomId" in payload) {
-        const { roomId } = payload as { roomId: string };
-        router.push(`/game/${roomId}`);
+        router.push(`/game/${payload.roomId}`);
       }
     });
 

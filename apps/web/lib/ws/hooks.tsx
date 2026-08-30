@@ -67,5 +67,12 @@ export function useWebSocket() {
     [client],
   );
 
-  return { state, send, on, client };
+  const authenticate = useCallback(
+    (token: string) => {
+      client?.authenticate(token);
+    },
+    [client],
+  );
+
+  return { state, send, on, authenticate, client };
 }

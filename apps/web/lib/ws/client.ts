@@ -137,6 +137,14 @@ export class WsClient {
     }
   }
 
+  authenticate(token: string): void {
+    this.send({
+      v: 1,
+      type: "AUTH",
+      payload: { token },
+    });
+  }
+
   on<T = unknown>(type: string, listener: Listener<T>): () => void {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, new Set());
