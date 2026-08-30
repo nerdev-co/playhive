@@ -6,8 +6,6 @@ import { fenToBoard } from "./store";
 import { computeHash } from "./zobrist";
 import { RepetitionTable } from "./repetition";
 import { search } from "./search";
-import { RepetitionTable } from "./repetition";
-import { search } from "./search";
 
 let currentState: EngineState;
 const repetitions = new RepetitionTable();
@@ -72,11 +70,10 @@ export function applyAction(action: EngineAction): EngineResult {
         return buildResult(events);
     }
 
-    // Handle draw offer (changes turn like a normal action)
+    // Handle draw offer
     if (action.type === "DRAW_OFFER") {
         pendingDrawOffer = currentState.turn;
         events.push({ type: "draw_offer", offeredBy: currentState.turn, fen: currentState.fen });
-        currentState.turn = currentState.turn === "white" ? "black" : "white";
         return buildResult(events);
     }
 
@@ -212,10 +209,6 @@ export function chooseBotAction(depth: number = 6): EngineAction {
         to: result.bestMove.to,
         promotion: result.bestMove.promotion,
     };
-}
-
-function moveToSan(state: EngineState, move: ChessMove): string {
-    return `${move.from}${move.to}${move.promotion || ""}`;
 }
 
 function isCheckmate(state: EngineState): boolean {
