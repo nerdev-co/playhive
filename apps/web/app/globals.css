@@ -23,6 +23,16 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+
+  --board-light: #f0d9b5;
+  --board-dark: #b58863;
+  --board-selected-light: #f6f669;
+  --board-selected-dark: #baca2b;
+  --board-lastmove-light: #f5f682;
+  --board-lastmove-dark: #baca44;
+  --board-check: #e74c3c;
+  --board-legal: rgba(0, 0, 0, 0.2);
+  --board-capture: rgba(0, 0, 0, 0.2);
 }
 
 @media (prefers-color-scheme: dark) {

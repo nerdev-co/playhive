@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { getUser, guestLogin, isLoggedIn } from "@/lib/auth";
+import { Button, Input, Badge, Card } from "@repo/ui";
 import type { RoomSnapshot, PlayerInfo } from "@repo/protocol";
 
 export default function LobbyPage() {
@@ -15,7 +16,6 @@ export default function LobbyPage() {
   const [inviteCode, setInviteCode] = useState("");
   const [authReady, setAuthReady] = useState(false);
 
-  // Auto-guest on first visit
   useEffect(() => {
     if (isLoggedIn()) {
       setPlayer(getUser() as PlayerInfo);
@@ -68,123 +68,119 @@ export default function LobbyPage() {
     };
   }, [on, router]);
 
-  const createRoom = (game: string, maxPlayers: number, privateRoom: boolean) => {
+  const createRoom = useCallback((game: string, maxPlayers: number, privateRoom: boolean) => {
     send({
       v: 1,
       type: "CREATE_ROOM",
       payload: { game, maxPlayers, private: privateRoom, settings: { media: { voice: false, video: false } } },
     });
     setShowCreate(false);
-  };
+  }, [send]);
 
-  const joinRoom = (roomId: string) => {
+  const joinRoom = useCallback((roomId: string) => {
     send({
       v: 1,
       type: "JOIN_ROOM",
       payload: { roomId, media: { voice: false, video: false } },
     });
     router.push(`/game/${roomId}`);
-  };
+  }, [send, router]);
 
-  const joinByCode = () => {
+  const joinByCode = useCallback(() => {
     if (!inviteCode.trim()) return;
     send({
       v: 1,
       type: "JOIN_ROOM",
       payload: { inviteCode: inviteCode.trim(), media: { voice: false, video: false } },
     });
-    // Navigation happens via ROOM_CREATED listener
     setInviteCode("");
-  };
+  }, [inviteCode, send]);
+
+  if (!authReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      {!authReady ? (
-        <div className="flex min-h-screen items-center justify-center text-gray-400">
-          Connecting...
-        </div>
-      ) : (
-      <>
-      <header className="mb-8 flex items-center justify-between">
+    <div className="mx-auto max-w-5xl px-6 py-12">
+      <header className="mb-10 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Lobby</h1>
-          <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-            <span className={`inline-block h-2 w-2 rounded-full ${state === "open" ? "bg-green-500" : "bg-red-500"}`} />
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Lobby</h1>
+          <p className="mt-1 flex items-center gap-2 text-sm text-muted">
+            <span className={`h-1.5 w-1.5 rounded-full ${state === "open" ? "bg-success" : "bg-danger"}`} />
             {state}
-          </div>
+          </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800"
-        >
-          Create Room
-        </button>
+        <Button onClick={() => setShowCreate(true)}>Create Room</Button>
       </header>
 
       {player && (
-        <div className="mb-6 flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-600">
+        <div className="mb-8 flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-hover text-sm font-semibold text-foreground">
             {player.displayName?.[0]?.toUpperCase() ?? "?"}
           </div>
           <div>
-            <p className="font-medium">{player.displayName}</p>
-            <p className="text-xs text-gray-400">@{player.username}</p>
+            <p className="text-sm font-medium text-foreground">{player.displayName}</p>
+            <p className="text-xs text-muted">@{player.username}</p>
           </div>
         </div>
       )}
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-400">Join by invite code</h2>
+      <section className="mb-10">
+        <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">Join by invite code</h2>
         <div className="flex gap-2">
-          <input
+          <Input
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && joinByCode()}
-            placeholder="Enter invite code"
-            className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm shadow-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+            placeholder="Paste invite code"
+            className="max-w-xs"
           />
-          <button
-            onClick={joinByCode}
-            className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium shadow-sm transition hover:bg-gray-50"
-          >
+          <Button variant="secondary" onClick={joinByCode}>
             Join
-          </button>
+          </Button>
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-400">Available Rooms</h2>
+        <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted">Available Rooms</h2>
         {rooms.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center">
-            <p className="text-gray-400">No rooms available.</p>
-            <p className="mt-1 text-sm text-gray-300">Create one to get started.</p>
-          </div>
+          <Card className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+            <p className="text-sm text-muted">No rooms available.</p>
+            <p className="text-xs text-muted/70">Create one to get started.</p>
+          </Card>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {rooms.map((room) => {
               const seatsTaken = room.seats.filter((s) => s.playerId).length;
               const isFull = seatsTaken >= room.maxPlayers;
               return (
-                <div key={room.id} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md">
-                  <div>
+                <Card
+                  key={room.id}
+                  hoverable
+                  className="flex items-center justify-between p-4"
+                >
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{room.name}</h3>
-                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-gray-500">
-                        {room.gameType}
-                      </span>
+                      <h3 className="truncate text-sm font-medium text-foreground">{room.name}</h3>
+                      <Badge variant="default">{room.gameType}</Badge>
                     </div>
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-muted">
                       {seatsTaken} / {room.maxPlayers} players · {room.status}
                     </p>
                   </div>
-                  <button
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     onClick={() => joinRoom(room.id)}
                     disabled={isFull}
-                    className="rounded-lg bg-black px-4 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     {isFull ? "Full" : "Join"}
-                  </button>
-                </div>
+                  </Button>
+                </Card>
               );
             })}
           </div>
@@ -196,8 +192,6 @@ export default function LobbyPage() {
           onClose={() => setShowCreate(false)}
           onCreate={createRoom}
         />
-      )}
-      </>
       )}
     </div>
   );
@@ -215,29 +209,24 @@ function CreateRoomDialog({
   const [isPrivate, setIsPrivate] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
-        <h2 className="mb-5 text-lg font-semibold">Create Room</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-sm">
+        <h2 className="mb-5 text-base font-semibold text-foreground">Create Room</h2>
         <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">Game</label>
-          <select
+          <Input
+            label="Game"
             value={game}
             onChange={(e) => setGame(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
-          >
-            <option value="chess">Chess</option>
-            <option value="ludo">Ludo</option>
-          </select>
+          />
         </div>
-        <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">Max Players</label>
-          <input
+        <div className="mb-6">
+          <Input
+            label="Max Players"
             type="number"
-            min={2}
+            min={1}
             max={8}
             value={maxPlayers}
             onChange={(e) => setMaxPlayers(Number(e.target.value))}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
           />
         </div>
         <div className="mb-6 flex items-center gap-2">
@@ -246,20 +235,13 @@ function CreateRoomDialog({
             type="checkbox"
             checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300"
+            className="h-4 w-4 rounded border-border accent-foreground"
           />
-          <label htmlFor="private" className="text-sm text-gray-600">Private room (invite only)</label>
+          <label htmlFor="private" className="text-sm text-foreground">Private room (invite only)</label>
         </div>
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50">
-            Cancel
-          </button>
-          <button
-            onClick={() => onCreate(game, maxPlayers, isPrivate)}
-            className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-          >
-            Create
-          </button>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => onCreate(game, maxPlayers, isPrivate)}>Create</Button>
         </div>
       </div>
     </div>

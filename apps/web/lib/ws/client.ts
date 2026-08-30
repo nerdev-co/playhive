@@ -15,7 +15,7 @@ export class WsClient {
 
   constructor(opts: WsClientOptions = {}) {
     this.opts = {
-      url: opts.url ?? (process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080/ws"),
+      url: opts.url ?? (process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3002/ws"),
       protocols: opts.protocols ?? [],
       reconnect: opts.reconnect ?? true,
       reconnectIntervalMs: opts.reconnectIntervalMs ?? 1000,

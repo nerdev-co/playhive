@@ -1,9 +1,9 @@
 export function createResponse<T>(data: T, status = 200): Response {
-    return Response.json(data, { status });
+    return Response.json(data, { status, headers: corsHeaders() });
 }
 
 export function createError(message: string, status = 400): Response {
-    return Response.json({ error: message }, { status });
+    return Response.json({ error: message }, { status, headers: corsHeaders() });
 }
 
 export function corsHeaders(): Record<string, string> {

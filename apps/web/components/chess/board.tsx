@@ -142,10 +142,10 @@ export function ChessBoard({
               const isLastMove = lastMove?.from === sq || lastMove?.to === sq;
               const isKingInCheck = sq === kingSquare;
 
-              let bg = isLight ? "bg-[#f0d9b5]" : "bg-[#b58863]";
-              if (isSelected) bg = isLight ? "bg-[#f6f669]" : "bg-[#baca2b]";
-              else if (isLastMove) bg = isLight ? "bg-[#f5f682]" : "bg-[#baca44]";
-              else if (isKingInCheck) bg = "bg-[#e74c3c]";
+              let bg = isLight ? "bg-board-light" : "bg-board-dark";
+              if (isSelected) bg = isLight ? "bg-board-selected-light" : "bg-board-selected-dark";
+              else if (isLastMove) bg = isLight ? "bg-board-lastmove-light" : "bg-board-lastmove-dark";
+              else if (isKingInCheck) bg = "bg-board-check";
 
               return (
                 <div
@@ -156,10 +156,10 @@ export function ChessBoard({
                   onDrop={(e) => handleDrop(e, file, rank)}
                 >
                   {isLegal && !isCapture && (
-                    <div className="h-2.5 w-2.5 rounded-full bg-black/20 sm:h-3 sm:w-3" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-board-legal sm:h-3 sm:w-3" />
                   )}
                   {isLegal && isCapture && (
-                    <div className="absolute inset-0 rounded-full border-[3px] border-black/20" />
+                    <div className="absolute inset-0 rounded-full border-[3px] border-board-capture" />
                   )}
                   {board[rank]?.[file] ? (
                     <span
