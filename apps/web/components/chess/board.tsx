@@ -74,7 +74,7 @@ export function ChessBoard({
 
   const isPromotionMove = useCallback(
     (from: string, to: string): boolean => {
-      const rank = parseInt(from[1]) - 1;
+      const rank = parseInt(from.charAt(1)) - 1;
       const file = from.charCodeAt(0) - 97;
       const piece = board[rank]?.[file];
       if (!piece) return false;
