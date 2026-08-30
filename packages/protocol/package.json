@@ -1,6 +1,8 @@
 {
   "name": "protocol",
-  "module": "index.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "private": true,
   "devDependencies": {
