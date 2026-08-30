@@ -188,6 +188,8 @@ export default function LobbyPage() {
           onCreate={createRoom}
         />
       )}
+      </>
+      )}
     </div>
   );
 }
