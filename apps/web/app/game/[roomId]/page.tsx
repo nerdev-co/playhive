@@ -137,7 +137,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
 
         {/* Turn */}
         <div className="animate-fade-in delay-1 flex items-center gap-2.5 rounded-lg border border-neutral-800 bg-neutral-900/60 p-3">
-          <div className={`flex h-7 w-7 items-center justify-center rounded-md text-[11px] font-bold ${engineState.turn === "white" ? "bg-neutral-100 text-neutral-900" : "bg-neutral-800 text-white"}`}>
+          <div className={`flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-bold ${engineState.turn === "white" ? "border-neutral-300 bg-white text-neutral-900" : "border-neutral-600 bg-neutral-800 text-white"}`}>
             {engineState.turn === "white" ? "W" : "B"}
           </div>
           <div>

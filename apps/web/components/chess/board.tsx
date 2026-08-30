@@ -3,6 +3,16 @@
 import { useState, useMemo, useCallback } from "react";
 import { fenToBoard, PIECE_SYMBOLS, squareColor } from "@repo/chess";
 
+const SQUARE_LIGHT = "#e8dcc8";
+const SQUARE_DARK = "#8b6d4f";
+const SQUARE_SELECTED_LIGHT = "#f6f669";
+const SQUARE_SELECTED_DARK = "#baca2b";
+const SQUARE_LASTMOVE_LIGHT = "#f5f682";
+const SQUARE_LASTMOVE_DARK = "#baca44";
+const SQUARE_CHECK = "#e74c3c";
+const SQUARE_LEGAL = "rgba(0,0,0,0.25)";
+const SQUARE_CAPTURE = "rgba(0,0,0,0.3)";
+
 interface ChessBoardProps {
   fen: string;
   turn: "white" | "black";
@@ -25,7 +35,6 @@ export function ChessBoard({
   onMove,
 }: ChessBoardProps) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState<string | null>(null);
   const board = useMemo(() => fenToBoard(fen), [fen]);
 
   const legalMap = useMemo(() => {
@@ -100,7 +109,6 @@ export function ChessBoard({
 
   const handleDrop = (e: React.DragEvent, file: number, rank: number) => {
     e.preventDefault();
-    setDragOver(null);
     if (disabled) return;
 
     const from = e.dataTransfer.getData("text/plain");
@@ -116,56 +124,66 @@ export function ChessBoard({
     setSelected(null);
   };
 
+  const getSquareBg = (file: number, rank: number, sq: string): string => {
+    const isLight = squareColor(file, rank) === "light";
+    if (selected === sq) return isLight ? SQUARE_SELECTED_LIGHT : SQUARE_SELECTED_DARK;
+    if (lastMove?.from === sq || lastMove?.to === sq) return isLight ? SQUARE_LASTMOVE_LIGHT : SQUARE_LASTMOVE_DARK;
+    if (sq === kingSquare) return SQUARE_CHECK;
+    return isLight ? SQUARE_LIGHT : SQUARE_DARK;
+  };
+
   return (
     <div className="mx-auto w-fit select-none">
       <div className="relative">
-        {/* Rank labels (left) */}
-        <div className="absolute -left-5 top-0 flex h-full flex-col justify-around text-[10px] font-medium text-muted">
+        {/* Rank labels */}
+        <div className="absolute -left-5 top-0 flex h-full flex-col justify-around text-[10px] font-medium text-neutral-500">
           {ranks.map((r) => (
-            <div key={r} className="flex h-[12.5%] items-center">
-              {r + 1}
-            </div>
+            <div key={r} className="flex h-[12.5%] items-center">{r + 1}</div>
           ))}
         </div>
 
         {/* Board */}
-        <div className="grid grid-cols-8 border border-foreground shadow-lg">
+        <div className="grid grid-cols-8 rounded-sm overflow-hidden shadow-lg" style={{ border: "1px solid #27272a" }}>
           {ranks.map((rank) =>
             files.map((file) => {
               const sq = `${String.fromCharCode(97 + file)}${rank + 1}`;
-              const isLight = squareColor(file, rank) === "light";
-              const isSelected = selected === sq;
+              const bg = getSquareBg(file, rank, sq);
               const isLegal = selected
                 ? (legalMap.get(selected) ?? []).some((t) => t.to === sq)
                 : false;
               const isCapture = isLegal && (board[rank]?.[file] ?? null) !== null;
-              const isLastMove = lastMove?.from === sq || lastMove?.to === sq;
-              const isKingInCheck = sq === kingSquare;
-
-              let bg = isLight ? "bg-board-light" : "bg-board-dark";
-              if (isSelected) bg = isLight ? "bg-board-selected-light" : "bg-board-selected-dark";
-              else if (isLastMove) bg = isLight ? "bg-board-lastmove-light" : "bg-board-lastmove-dark";
-              else if (isKingInCheck) bg = "bg-board-check";
-
               return (
                 <div
                   key={sq}
-                  className={`relative flex h-10 w-10 cursor-pointer items-center justify-center text-2xl sm:h-12 sm:w-12 sm:text-3xl md:h-14 md:w-14 md:text-4xl ${bg} transition-colors duration-75`}
+                  className="relative flex h-11 w-11 cursor-pointer items-center justify-center text-3xl sm:h-13 sm:w-13 sm:text-4xl md:h-14 md:w-14 md:text-4xl transition-colors duration-75"
+                  style={{ backgroundColor: bg }}
                   onClick={() => handleSquareClick(file, rank)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, file, rank)}
                 >
                   {isLegal && !isCapture && (
-                    <div className="h-2.5 w-2.5 rounded-full bg-board-legal sm:h-3 sm:w-3" />
+                    <div
+                      className="absolute rounded-full"
+                      style={{ width: 10, height: 10, backgroundColor: SQUARE_LEGAL }}
+                    />
                   )}
                   {isLegal && isCapture && (
-                    <div className="absolute inset-0 rounded-full border-[3px] border-board-capture" />
+                    <div
+                      className="absolute inset-0 rounded-full"
+                      style={{ border: `3px solid ${SQUARE_CAPTURE}` }}
+                    />
                   )}
                   {board[rank]?.[file] ? (
                     <span
                       draggable={!disabled}
                       onDragStart={(e) => handleDragStart(e, file, rank)}
-                      className="cursor-grab active:cursor-grabbing"
+                      className="cursor-grab active:cursor-grabbing select-none"
+                      style={{
+                        color: board[rank]![file] === board[rank]![file]!.toUpperCase() ? "#ffffff" : "#1a1a1a",
+                        textShadow: board[rank]![file] === board[rank]![file]!.toUpperCase()
+                          ? "0 1px 3px rgba(0,0,0,0.5)"
+                          : "0 1px 2px rgba(255,255,255,0.3)",
+                      }}
                     >
                       {PIECE_SYMBOLS[board[rank]![file]!]}
                     </span>
@@ -176,10 +194,10 @@ export function ChessBoard({
           )}
         </div>
 
-        {/* File labels (bottom) */}
-        <div className="flex justify-around text-[10px] font-medium text-muted">
+        {/* File labels */}
+        <div className="flex justify-around text-[10px] font-medium text-neutral-500">
           {files.map((f) => (
-            <div key={f} className="flex w-10 justify-center sm:w-12 md:w-14">
+            <div key={f} className="flex w-11 justify-center sm:w-13 md:w-14">
               {String.fromCharCode(97 + f)}
             </div>
           ))}
