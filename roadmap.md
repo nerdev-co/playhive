@@ -68,15 +68,15 @@ Same layers as Ludo, but:
 
 ## Phase 6: Client
 
-| Area                     | What to build                                                                                                           |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| **WebSocket client**     | HTTP bootstrap (token + gateway URL), envelope send/receive, reconnect/resume to the affinitized gateway                |
-| **Lobby**                | Room list, create/join, matchmaking queue UI                                                                            |
-| **Game UI**              | Board rendering, move input, legal move highlights                                                                      |
-| **WebRTC relay**         | `MEDIA_OFFER`/`MEDIA_ANSWER`/`MEDIA_ICE` relay in the gateway                                                           |
-| **WebRTC client + TURN** | Client video/voice UI, renegotiation; coturn in compose (dev), managed provider (Twilio/Cloudflare Calls) path at scale |
-| **History**              | Match list, event replay from Postgres                                                                                  |
-| **Auth/profile**         | Guest token storage, username, avatar                                                                                   |
+| Area                     | Status | What to build                                                                                                           |
+| ------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------- |
+| **WebSocket client**     | ✅     | HTTP bootstrap (token + gateway URL), envelope send/receive, reconnect/resume to the affinitized gateway                |
+| **Lobby**                | ✅     | Room list, create/join, matchmaking queue UI                                                                            |
+| **Game UI**              | ✅     | Board rendering, move input, legal move highlights                                                                      |
+| **WebRTC relay**         | ✅     | `MEDIA_OFFER`/`MEDIA_ANSWER`/`MEDIA_ICE` relay in the gateway                                                           |
+| **WebRTC client + TURN** | 🔧     | Client video/voice UI, renegotiation; coturn in compose (dev), managed provider (Twilio/Cloudflare Calls) path at scale |
+| **History**              |        | Match list, event replay from Postgres                                                                                  |
+| **Auth/profile**         |        | Guest token storage, username, avatar                                                                                   |
 
 ---
 
