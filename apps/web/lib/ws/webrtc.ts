@@ -6,12 +6,11 @@ import { useWebSocket } from "./hooks";
 export interface MediaState {
   audio: boolean;
   video: boolean;
-  screen: boolean;
 }
 
 interface UseWebRTCOptions {
   roomId: string;
-  seatIndex: number;
+  targetPlayerId: string;
   iceServers?: RTCIceServer[];
 }
 
@@ -20,12 +19,12 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun1.l.google.com:19302" },
 ];
 
-export function useWebRTC({ roomId, seatIndex, iceServers = DEFAULT_ICE_SERVERS }: UseWebRTCOptions) {
+export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SERVERS }: UseWebRTCOptions) {
   const { send, on } = useWebSocket();
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [mediaState, setMediaState] = useState<MediaState>({ audio: false, video: false, screen: false });
+  const [mediaState, setMediaState] = useState<MediaState>({ audio: false, video: false });
   const [connected, setConnected] = useState(false);
 
   const getOrCreatePC = useCallback(() => {
@@ -38,9 +37,11 @@ export function useWebRTC({ roomId, seatIndex, iceServers = DEFAULT_ICE_SERVERS 
       if (e.candidate) {
         send({
           v: 1,
-          type: "WEBRTC_ICE",
-          roomId,
-          payload: { seat: seatIndex, candidate: e.candidate.toJSON() },
+          type: "MEDIA_ICE",
+          payload: {
+            to: targetPlayerId,
+            payload: { candidate: e.candidate.toJSON() },
+          },
         });
       }
     };
@@ -54,7 +55,7 @@ export function useWebRTC({ roomId, seatIndex, iceServers = DEFAULT_ICE_SERVERS 
     };
 
     return pc;
-  }, [roomId, seatIndex, iceServers, send]);
+  }, [targetPlayerId, iceServers, send]);
 
   const startMedia = useCallback(
     async (constraints: MediaStreamConstraints) => {
@@ -71,20 +72,21 @@ export function useWebRTC({ roomId, seatIndex, iceServers = DEFAULT_ICE_SERVERS 
 
       send({
         v: 1,
-        type: "WEBRTC_OFFER",
-        roomId,
-        payload: { seat: seatIndex, sdp: offer },
+        type: "MEDIA_OFFER",
+        payload: {
+          to: targetPlayerId,
+          payload: { sdp: offer },
+        },
       });
 
       setMediaState({
         audio: !!constraints.audio,
         video: !!constraints.video,
-        screen: false,
       });
 
       return stream;
     },
-    [getOrCreatePC, roomId, seatIndex, send],
+    [getOrCreatePC, targetPlayerId, send],
   );
 
   const toggleAudio = useCallback(async () => {
@@ -101,13 +103,15 @@ export function useWebRTC({ roomId, seatIndex, iceServers = DEFAULT_ICE_SERVERS 
       await pc.setLocalDescription(offer);
       send({
         v: 1,
-        type: "WEBRTC_OFFER",
-        roomId,
-        payload: { seat: seatIndex, sdp: offer },
+        type: "MEDIA_OFFER",
+        payload: {
+          to: targetPlayerId,
+          payload: { sdp: offer },
+        },
       });
       setMediaState((s) => ({ ...s, audio: true }));
     }
-  }, [mediaState.audio, getOrCreatePC, roomId, seatIndex, send]);
+  }, [mediaState.audio, getOrCreatePC, targetPlayerId, send]);
 
   const toggleVideo = useCallback(async () => {
     if (mediaState.video) {
@@ -123,13 +127,15 @@ export function useWebRTC({ roomId, seatIndex, iceServers = DEFAULT_ICE_SERVERS 
       await pc.setLocalDescription(offer);
       send({
         v: 1,
-        type: "WEBRTC_OFFER",
-        roomId,
-        payload: { seat: seatIndex, sdp: offer },
+        type: "MEDIA_OFFER",
+        payload: {
+          to: targetPlayerId,
+          payload: { sdp: offer },
+        },
       });
       setMediaState((s) => ({ ...s, video: true }));
     }
-  }, [mediaState.video, getOrCreatePC, roomId, seatIndex, send]);
+  }, [mediaState.video, getOrCreatePC, targetPlayerId, send]);
 
   const stopAll = useCallback(() => {
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -137,50 +143,52 @@ export function useWebRTC({ roomId, seatIndex, iceServers = DEFAULT_ICE_SERVERS 
     pcRef.current?.close();
     pcRef.current = null;
     setRemoteStream(null);
-    setMediaState({ audio: false, video: false, screen: false });
+    setMediaState({ audio: false, video: false });
     setConnected(false);
   }, []);
 
   useEffect(() => {
     const unsubs = [
-      on("WEBRTC_OFFER", async (data: unknown) => {
-        const msg = data as { seat: number; sdp: RTCSessionDescriptionInit };
-        if (msg.seat === seatIndex) return;
+      on("MEDIA_OFFER", async (data: unknown) => {
+        const msg = data as { from: string; payload: { sdp: RTCSessionDescriptionInit } };
+        if (msg.from === targetPlayerId) return;
 
         const pc = getOrCreatePC();
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
         send({
           v: 1,
-          type: "WEBRTC_ANSWER",
-          roomId,
-          payload: { seat: seatIndex, sdp: answer },
+          type: "MEDIA_ANSWER",
+          payload: {
+            to: msg.from,
+            payload: { sdp: answer },
+          },
         });
       }),
 
-      on("WEBRTC_ANSWER", async (data: unknown) => {
-        const msg = data as { seat: number; sdp: RTCSessionDescriptionInit };
-        if (msg.seat === seatIndex) return;
+      on("MEDIA_ANSWER", async (data: unknown) => {
+        const msg = data as { from: string; payload: { sdp: RTCSessionDescriptionInit } };
+        if (msg.from === targetPlayerId) return;
         const pc = pcRef.current;
         if (pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
         }
       }),
 
-      on("WEBRTC_ICE", async (data: unknown) => {
-        const msg = data as { seat: number; candidate: RTCIceCandidateInit };
-        if (msg.seat === seatIndex) return;
+      on("MEDIA_ICE", async (data: unknown) => {
+        const msg = data as { from: string; payload: { candidate: RTCIceCandidateInit } };
+        if (msg.from === targetPlayerId) return;
         const pc = pcRef.current;
-        if (pc && msg.candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+        if (pc && msg.payload.candidate) {
+          await pc.addIceCandidate(new RTCIceCandidate(msg.payload.candidate));
         }
       }),
     ];
 
     return () => unsubs.forEach((u) => u());
-  }, [on, seatIndex, roomId, send, getOrCreatePC]);
+  }, [on, targetPlayerId, send, getOrCreatePC]);
 
   return {
     remoteStream,
