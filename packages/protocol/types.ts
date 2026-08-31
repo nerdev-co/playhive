@@ -608,6 +608,8 @@ export interface LudoAction extends EngineAction {
     from?: number;
     /** Destination position */
     to?: number;
+    /** Dice distance (server-authoritative — client value is ignored) */
+    distance?: number;
 }
 
 /** Chess-specific actions */

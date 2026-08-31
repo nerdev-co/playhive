@@ -43,4 +43,4 @@ export const GAME_INFO = [0, 0, 0] as [number, number, number];
 
 export const EVENTS: Record<string, Function> = {};
 
-export const RANDOM_NUMS = [1, 2, 3, 4, 5, 6, 6, 6];
+export const RANDOM_NUMS = [1, 2, 3, 4, 5, 6];

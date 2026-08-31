@@ -112,4 +112,6 @@ export interface LudoSession {
     history: string[];
     gameInfo: [number, number, number];
     config: Required<LudoOptions>;
+    /** Server-generated dice value. Set by ROLL_DICE, consumed by MOVE_TOKEN. */
+    pendingDistance?: number;
 }
