@@ -69,6 +69,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     return (stored as GameType) || null;
   });
   const [seatOrder, setSeatOrder] = useState<number[]>([]);
+  const [gameResult, setGameResult] = useState<{ winner?: string; reason?: string } | null>(null);
 
   // Chess state
   const [chessState, setChessState] = useState<EngineState | null>(null);
@@ -266,8 +267,8 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
       const result = msg?.payload?.result ?? msg?.payload;
       const winner = result?.winner;
       const reason = result?.reason ?? msg?.payload?.reason;
+      setGameResult({ winner, reason });
 
-      // Show result briefly, then redirect
       setTimeout(() => {
         router.push("/lobby");
       }, 3000);
@@ -734,6 +735,23 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
           </div>
         )}
       </div>
+
+      {gameResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="animate-fade-in rounded-xl border border-neutral-800 bg-neutral-900 p-8 text-center">
+            <p className="mb-2 text-sm font-medium uppercase tracking-widest text-neutral-500">
+              Game Over
+            </p>
+            <p className="text-2xl font-bold text-white">
+              {gameResult.winner ? `${gameResult.winner} wins` : "Draw"}
+            </p>
+            {gameResult.reason && (
+              <p className="mt-2 text-sm text-neutral-400">{gameResult.reason}</p>
+            )}
+            <p className="mt-4 text-xs text-neutral-600">Redirecting to lobby...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
