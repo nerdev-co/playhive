@@ -143,12 +143,14 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
       }
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      const sdpPayload = { type: offer.type!, sdp: offer.sdp! };
+      console.log("[webrtc] Sending MEDIA_OFFER:", JSON.stringify(sdpPayload));
       send({
         v: 1,
         type: "MEDIA_OFFER",
         payload: {
           to: targetPlayerId,
-          payload: { sdp: { type: offer.type!, sdp: offer.sdp! } },
+          payload: { sdp: sdpPayload },
         },
       });
       setMediaState((s) => ({ ...s, video: true }));
@@ -171,9 +173,13 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
         try {
           const envelope = data as { type: string; payload?: { from?: string; payload?: unknown } };
           const msg = envelope.payload;
+          console.log("[webrtc] MEDIA_OFFER received:", JSON.stringify(msg));
           if (!msg?.from || !msg?.payload) return;
           if (msg.from === targetPlayerId) return;
-          if (!isValidSdp(msg.payload)) return;
+          if (!isValidSdp(msg.payload)) {
+            console.warn("[webrtc] Invalid SDP, skipping:", msg.payload);
+            return;
+          }
 
           const pc = getOrCreatePC();
           await pc.setRemoteDescription(msg.payload);

@@ -89,15 +89,15 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
   const [roomStatus, setRoomStatus] = useState<string>("WAITING");
   const [maxPlayers, setMaxPlayers] = useState(4);
 
-  // WebRTC — find opponent from room seats
-  const targetPlayerId = useMemo(() => {
-    const seat = roomSeats.find((s) => s.seat !== seatRef.current && s.playerId);
-    return seat?.playerId ?? null;
-  }, [roomSeats]);
-  const rtc = useWebRTC({
-    roomId,
-    targetPlayerId: targetPlayerId ?? "",
-  });
+  // WebRTC — disabled until relay is debugged
+  // const targetPlayerId = useMemo(() => {
+  //   const seat = roomSeats.find((s) => s.seat !== seatRef.current && s.playerId);
+  //   return seat?.playerId ?? null;
+  // }, [roomSeats]);
+  // const rtc = useWebRTC({
+  //   roomId,
+  //   targetPlayerId: targetPlayerId ?? "",
+  // });
 
   // Store roomId for RESUME on reconnect
   useEffect(() => {
@@ -678,8 +678,8 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
           </div>
         )}
 
-        {/* Media controls */}
-        {targetPlayerId && (
+        {/* Media controls — disabled until WebRTC relay is debugged */}
+        {/* {targetPlayerId && (
           <div className="animate-fade-in delay-4 rounded-lg border border-neutral-800 bg-neutral-900/60 p-3">
             <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-neutral-600">
               Media
@@ -732,7 +732,7 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
               <p className="mt-1.5 text-[10px] text-emerald-500">Connected</p>
             )}
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );
