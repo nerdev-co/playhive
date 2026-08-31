@@ -55,6 +55,11 @@ export default function Home() {
     <main className="overflow-hidden">
       {/* Hero */}
       <section className="relative flex min-h-screen flex-col items-center justify-center px-6">
+        {/* Ambient gradients */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-indigo-500/[0.04] blur-[120px]" />
+          <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-indigo-400/[0.03] blur-[120px]" />
+        </div>
         <div className="relative z-10 mx-auto max-w-2xl text-center">
           <h1 className="text-5xl font-bold tracking-tight text-white sm:text-7xl">
             Play
