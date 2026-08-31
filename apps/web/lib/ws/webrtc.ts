@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useWebSocket } from "./hooks";
 
+const WEBRTC_HOOK_VERSION = 3;
+
 export interface MediaState {
   audio: boolean;
   video: boolean;
@@ -24,16 +26,28 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   },
 ];
 
-function isValidSdp(sdp: unknown): sdp is RTCSessionDescriptionInit {
-  return (
-    typeof sdp === "object" &&
-    sdp !== null &&
-    "type" in sdp &&
-    "sdp" in sdp &&
-    typeof (sdp as RTCSessionDescriptionInit).type === "string" &&
-    typeof (sdp as RTCSessionDescriptionInit).sdp === "string" &&
-    (sdp as RTCSessionDescriptionInit).sdp!.length > 0
-  );
+function safeSetRemoteDescription(pc: RTCPeerConnection, desc: RTCSessionDescriptionInit): Promise<void> {
+  const plain = { type: desc.type, sdp: desc.sdp };
+  console.log("[webrtc] setRemoteDescription called with:", JSON.stringify(plain));
+  if (!plain.type || !plain.sdp) {
+    console.error("[webrtc] REJECTED: desc is", plain);
+    return Promise.resolve();
+  }
+  return pc.setRemoteDescription(plain);
+}
+
+function extractSdpFromPayload(data: unknown): { from: string; sdp: RTCSessionDescriptionInit } | null {
+  const d = data as Record<string, unknown>;
+  const p = d?.payload as Record<string, unknown> | undefined;
+  if (!p) return null;
+  const from = p.from as string | undefined;
+  const inner = p.payload as Record<string, unknown> | undefined;
+  if (!from || !inner) return null;
+  const sdp = inner.sdp as Record<string, unknown> | undefined;
+  if (!sdp || typeof sdp.type !== "string" || typeof sdp.sdp !== "string" || (sdp.sdp as string).length === 0) {
+    return null;
+  }
+  return { from, sdp: { type: sdp.type as RTCSdpType, sdp: sdp.sdp as string } };
 }
 
 export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SERVERS }: UseWebRTCOptions) {
@@ -45,7 +59,7 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
   const [connected, setConnected] = useState(false);
 
   const getOrCreatePC = useCallback(() => {
-    if (pcRef.current) return pcRef.current;
+    if (pcRef.current && pcRef.current.connectionState !== "closed") return pcRef.current;
 
     const pc = new RTCPeerConnection({ iceServers });
     pcRef.current = pc;
@@ -74,7 +88,7 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
     return pc;
   }, [targetPlayerId, iceServers, send]);
 
-  const startMedia = useCallback(
+  const sendOffer = useCallback(
     async (constraints: MediaStreamConstraints) => {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
@@ -85,7 +99,6 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
       }
 
       const offer = await pc.createOffer();
-      console.log("[webrtc] startMedia offer:", JSON.stringify({ type: offer.type, sdpLen: offer.sdp?.length }));
       await pc.setLocalDescription(offer);
       const sdp = { type: offer.type!, sdp: offer.sdp! };
 
@@ -108,54 +121,30 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
     [getOrCreatePC, targetPlayerId, send],
   );
 
+  const startMedia = useCallback(
+    (constraints: MediaStreamConstraints) => sendOffer(constraints),
+    [sendOffer],
+  );
+
   const toggleAudio = useCallback(async () => {
     if (mediaState.audio) {
       localStreamRef.current?.getAudioTracks().forEach((t) => (t.enabled = false));
       setMediaState((s) => ({ ...s, audio: false }));
     } else {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const pc = getOrCreatePC();
-      for (const track of stream.getAudioTracks()) {
-        pc.addTrack(track, stream);
-      }
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      send({
-        v: 1,
-        type: "MEDIA_OFFER",
-        payload: {
-          to: targetPlayerId,
-          payload: { sdp: { type: offer.type!, sdp: offer.sdp! } },
-        },
-      });
+      await sendOffer({ audio: true });
       setMediaState((s) => ({ ...s, audio: true }));
     }
-  }, [mediaState.audio, getOrCreatePC, targetPlayerId, send]);
+  }, [mediaState.audio, sendOffer]);
 
   const toggleVideo = useCallback(async () => {
     if (mediaState.video) {
       localStreamRef.current?.getVideoTracks().forEach((t) => (t.enabled = false));
       setMediaState((s) => ({ ...s, video: false }));
     } else {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      const pc = getOrCreatePC();
-      for (const track of stream.getVideoTracks()) {
-        pc.addTrack(track, stream);
-      }
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      const sdpPayload = { type: offer.type!, sdp: offer.sdp! };
-      send({
-        v: 1,
-        type: "MEDIA_OFFER",
-        payload: {
-          to: targetPlayerId,
-          payload: { sdp: sdpPayload },
-        },
-      });
+      await sendOffer({ video: true });
       setMediaState((s) => ({ ...s, video: true }));
     }
-  }, [mediaState.video, getOrCreatePC, targetPlayerId, send]);
+  }, [mediaState.video, sendOffer]);
 
   const stopAll = useCallback(() => {
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -168,92 +157,83 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
   }, []);
 
   useEffect(() => {
-    const unsubs = [
-      on("MEDIA_OFFER", (data: unknown) => {
-        const raw = JSON.stringify(data);
-        console.log("[webrtc] MEDIA_OFFER raw:", raw);
-        (async () => {
-          try {
-            const d = data as Record<string, unknown>;
-            const p = d.payload as Record<string, unknown> | undefined;
-            if (!p) return;
-            const from = p.from as string | undefined;
-            const inner = p.payload as Record<string, unknown> | undefined;
-            if (!from || !inner) return;
-            if (from === targetPlayerId) return;
-            const sdp = inner.sdp as Record<string, unknown> | undefined;
-            if (!sdp || typeof sdp.type !== "string" || typeof sdp.sdp !== "string") {
-              console.warn("[webrtc] MEDIA_OFFER bad SDP:", JSON.stringify(sdp));
-              return;
-            }
-            const desc: RTCSessionDescriptionInit = { type: sdp.type as RTCSdpType, sdp: sdp.sdp as string };
-            console.log("[webrtc] MEDIA_OFFER setRemoteDescription:", JSON.stringify(desc));
-            const pc = getOrCreatePC();
-            await pc.setRemoteDescription(desc);
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+    console.log(`[webrtc] hook v${WEBRTC_HOOK_VERSION} effect running, target=${targetPlayerId}`);
 
-            send({
-              v: 1,
-              type: "MEDIA_ANSWER",
-              payload: {
-                to: from,
-                payload: { sdp: { type: answer.type!, sdp: answer.sdp! } },
-              },
-            });
-          } catch (err) {
-            console.warn("[webrtc] MEDIA_OFFER handling failed:", err);
+    const unsubOffer = on("MEDIA_OFFER", (data: unknown) => {
+      console.log("[webrtc] MEDIA_OFFER received, raw:", JSON.stringify(data).slice(0, 500));
+      const parsed = extractSdpFromPayload(data);
+      if (!parsed) {
+        console.warn("[webrtc] MEDIA_OFFER: could not extract SDP from payload");
+        return;
+      }
+      if (parsed.from === targetPlayerId) {
+        console.log("[webrtc] MEDIA_OFFER: skipping self");
+        return;
+      }
+      console.log("[webrtc] MEDIA_OFFER: SDP OK, setting remote description");
+      (async () => {
+        try {
+          const pc = getOrCreatePC();
+          await safeSetRemoteDescription(pc, parsed.sdp);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          send({
+            v: 1,
+            type: "MEDIA_ANSWER",
+            payload: {
+              to: parsed.from,
+              payload: { sdp: { type: answer.type!, sdp: answer.sdp! } },
+            },
+          });
+          console.log("[webrtc] MEDIA_ANSWER sent to", parsed.from);
+        } catch (err) {
+          console.error("[webrtc] MEDIA_OFFER handling error:", err);
+        }
+      })();
+    });
+
+    const unsubAnswer = on("MEDIA_ANSWER", (data: unknown) => {
+      console.log("[webrtc] MEDIA_ANSWER received, raw:", JSON.stringify(data).slice(0, 500));
+      const parsed = extractSdpFromPayload(data);
+      if (!parsed) return;
+      if (parsed.from === targetPlayerId) return;
+      (async () => {
+        try {
+          const pc = pcRef.current;
+          if (pc) {
+            await safeSetRemoteDescription(pc, parsed.sdp);
           }
-        })();
-      }),
+        } catch (err) {
+          console.error("[webrtc] MEDIA_ANSWER handling error:", err);
+        }
+      })();
+    });
 
-      on("MEDIA_ANSWER", (data: unknown) => {
-        (async () => {
-          try {
-            const d = data as Record<string, unknown>;
-            const p = d.payload as Record<string, unknown> | undefined;
-            if (!p) return;
-            const from = p.from as string | undefined;
-            const inner = p.payload as Record<string, unknown> | undefined;
-            if (!inner) return;
-            if (from === targetPlayerId) return;
-            const sdp = inner.sdp as Record<string, unknown> | undefined;
-            if (!sdp || typeof sdp.type !== "string" || typeof sdp.sdp !== "string") return;
-            const desc: RTCSessionDescriptionInit = { type: sdp.type as RTCSdpType, sdp: sdp.sdp as string };
-
-            const pc = pcRef.current;
-            if (pc) {
-              await pc.setRemoteDescription(desc);
-            }
-          } catch (err) {
-            console.warn("[webrtc] MEDIA_ANSWER handling failed:", err);
+    const unsubIce = on("MEDIA_ICE", (data: unknown) => {
+      const d = data as Record<string, unknown>;
+      const p = d?.payload as Record<string, unknown> | undefined;
+      if (!p) return;
+      const from = p.from as string | undefined;
+      const inner = p.payload as Record<string, unknown> | undefined;
+      if (!inner?.candidate || from === targetPlayerId) return;
+      (async () => {
+        try {
+          const pc = pcRef.current;
+          if (pc) {
+            await pc.addIceCandidate(inner.candidate as RTCIceCandidateInit);
           }
-        })();
-      }),
+        } catch (err) {
+          console.warn("[webrtc] MEDIA_ICE handling error:", err);
+        }
+      })();
+    });
 
-      on("MEDIA_ICE", (data: unknown) => {
-        (async () => {
-          try {
-            const d = data as Record<string, unknown>;
-            const p = d.payload as Record<string, unknown> | undefined;
-            if (!p) return;
-            const from = p.from as string | undefined;
-            const inner = p.payload as Record<string, unknown> | undefined;
-            if (!inner?.candidate) return;
-            if (from === targetPlayerId) return;
-
-            const pc = pcRef.current;
-            if (pc) {
-              await pc.addIceCandidate(inner.candidate as RTCIceCandidateInit);
-            }
-          } catch (err) {
-            console.warn("[webrtc] MEDIA_ICE handling failed:", err);
-          }
-        })();
-      }),
-    ];
-
-    return () => unsubs.forEach((u) => u());
+    return () => {
+      console.log(`[webrtc] hook v${WEBRTC_HOOK_VERSION} effect cleanup`);
+      unsubOffer();
+      unsubAnswer();
+      unsubIce();
+    };
   }, [on, targetPlayerId, send, getOrCreatePC]);
 
   return {
