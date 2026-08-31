@@ -1,34 +1,71 @@
 import Link from "next/link";
 
+function MiniChessBoard() {
+  const pieces = [
+    { r: 0, c: 0, p: "♜", dark: true },
+    { r: 0, c: 3, p: "♚", dark: true },
+    { r: 1, c: 1, p: "♟", dark: true },
+    { r: 1, c: 2, p: "♟", dark: true },
+    { r: 2, c: 0, p: "♙", dark: false },
+    { r: 2, c: 3, p: "♕", dark: false },
+    { r: 3, c: 1, p: "♙", dark: false },
+    { r: 3, c: 2, p: "♖", dark: false },
+  ];
+  return (
+    <div className="grid grid-cols-4 gap-px rounded-md bg-neutral-700/30 p-px">
+      {Array.from({ length: 16 }, (_, i) => {
+        const r = Math.floor(i / 4);
+        const c = i % 4;
+        const light = (r + c) % 2 === 0;
+        const piece = pieces.find((x) => x.r === r && x.c === c);
+        return (
+          <div
+            key={i}
+            className={`flex h-5 w-5 items-center justify-center text-[10px] leading-none sm:h-6 sm:w-6 sm:text-xs ${
+              light ? "bg-neutral-800" : "bg-neutral-800/60"
+            }`}
+          >
+            {piece?.p ?? ""}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MiniLudoBoard() {
+  return (
+    <div className="relative h-12 w-12 sm:h-14 sm:w-14">
+      {/* Cross shape */}
+      <div className="absolute inset-x-0 top-0 h-1/3 bg-emerald-500/20" />
+      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-emerald-500/20" />
+      <div className="absolute inset-y-0 left-0 w-1/3 bg-emerald-500/20" />
+      <div className="absolute inset-y-0 right-0 w-1/3 bg-emerald-500/20" />
+      {/* Center */}
+      <div className="absolute inset-1/3 bg-emerald-500/40" />
+      {/* Home markers */}
+      <div className="absolute left-0 top-0 h-1/3 w-1/3 bg-red-500/30" />
+      <div className="absolute bottom-0 right-0 h-1/3 w-1/3 bg-amber-500/30" />
+    </div>
+  );
+}
+
 export default function Home() {
   return (
     <main className="overflow-hidden">
       {/* Hero */}
       <section className="relative flex min-h-screen flex-col items-center justify-center px-6">
-        {/* Ambient glow */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-1/4 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-indigo-500/[0.06] blur-[100px]" />
-          <div className="absolute bottom-1/4 left-1/3 h-[300px] w-[300px] rounded-full bg-amber-500/[0.05] blur-[80px]" />
-        </div>
-
-        <div className="relative z-10 mx-auto max-w-3xl text-center">
-          <div className="animate-fade-in mb-8 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/80 px-4 py-1.5 text-xs text-neutral-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Live now
-          </div>
-
-          <h1 className="animate-fade-in-up delay-1 text-5xl font-bold tracking-tight text-white sm:text-7xl">
+        <div className="relative z-10 mx-auto max-w-2xl text-center">
+          <h1 className="text-5xl font-bold tracking-tight text-white sm:text-7xl">
             Play
-            <span className="bg-gradient-to-r from-indigo-400 to-indigo-300 bg-clip-text text-transparent">
-              Hive
-            </span>
+            <span className="text-indigo-400">Hive</span>
           </h1>
 
-          <p className="animate-fade-in-up delay-2 mx-auto mt-5 max-w-lg text-base text-neutral-400">
-            Challenge friends to chess and ludo in real time. Built-in AI, voice chat, and match history.
+          <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-neutral-400">
+            Chess and ludo with friends. Real-time matches, built-in AI, voice chat.
           </p>
 
-          <div className="animate-fade-in-up delay-3 mt-8 flex items-center justify-center gap-3">
+          <div className="mt-8 flex items-center justify-center gap-3">
             <Link
               href="/lobby"
               className="rounded-lg bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-all duration-150 hover:bg-indigo-400 active:scale-[0.98]"
@@ -43,43 +80,29 @@ export default function Home() {
             </Link>
           </div>
         </div>
-
-        {/* Scroll hint */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-fade-in delay-5">
-          <div className="h-4 w-3 rounded-full border border-neutral-700 p-0.5">
-            <div className="mx-auto h-1 w-1 animate-bounce rounded-full bg-neutral-600" />
-          </div>
-        </div>
       </section>
 
       {/* Games */}
-      <section className="mx-auto max-w-4xl px-6 py-28">
-        <div className="animate-fade-in">
-          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-indigo-400">
-            Available Now
-          </p>
-          <h2 className="text-2xl font-semibold tracking-tight text-white">
-            Pick your game
-          </h2>
-        </div>
+      <section className="mx-auto max-w-4xl px-6 pb-28">
+        <p className="mb-6 text-xs font-medium uppercase tracking-widest text-neutral-500">
+          Available Now
+        </p>
 
-        <div className="mt-10 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {/* Chess */}
           <Link
             href="/lobby"
-            className="animate-fade-in-up delay-1 group relative overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-6 transition-all duration-200 ease-[var(--ease-out)] hover:border-amber-800/50 hover:bg-neutral-900/80"
+            className="group relative overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-6 transition-all duration-200 ease-[var(--ease-out)] hover:border-amber-800/50"
           >
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-xl">
-                ♔
-              </div>
+            <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-white">Chess</h3>
-                <p className="text-xs text-neutral-500">2 players</p>
+                <p className="mt-0.5 text-xs text-neutral-500">2 players</p>
               </div>
+              <MiniChessBoard />
             </div>
-            <p className="text-sm leading-relaxed text-neutral-400">
-              The game of kings. Real-time matches with full PGN support and AI opponent.
+            <p className="mt-4 text-sm leading-relaxed text-neutral-400">
+              Full PGN support, legal move validation, AI opponent. Real-time sync.
             </p>
             <div className="mt-4 flex items-center gap-1.5 text-xs text-neutral-600 transition-colors group-hover:text-amber-500/80">
               Play now
@@ -92,19 +115,17 @@ export default function Home() {
           {/* Ludo */}
           <Link
             href="/lobby"
-            className="animate-fade-in-up delay-2 group relative overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-6 transition-all duration-200 ease-[var(--ease-out)] hover:border-emerald-800/50 hover:bg-neutral-900/80"
+            className="group relative overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-6 transition-all duration-200 ease-[var(--ease-out)] hover:border-emerald-800/50"
           >
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-xl">
-                🎲
-              </div>
+            <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-white">Ludo</h3>
-                <p className="text-xs text-neutral-500">2-4 players</p>
+                <p className="mt-0.5 text-xs text-neutral-500">2-4 players</p>
               </div>
+              <MiniLudoBoard />
             </div>
-            <p className="text-sm leading-relaxed text-neutral-400">
-              Classic race to the finish. Roll dice, capture opponents, race home.
+            <p className="mt-4 text-sm leading-relaxed text-neutral-400">
+              Classic race to finish. Roll, capture, race home. Server-authoritative dice.
             </p>
             <div className="mt-4 flex items-center gap-1.5 text-xs text-neutral-600 transition-colors group-hover:text-emerald-500/80">
               Play now
@@ -114,25 +135,21 @@ export default function Home() {
             </div>
           </Link>
         </div>
-      </section>
 
-      {/* Features */}
-      <section className="mx-auto max-w-4xl px-6 pb-28">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            { title: "Real-time", desc: "Instant move sync. No lag.", accent: "bg-indigo-500" },
-            { title: "Voice Chat", desc: "Talk while you play.", accent: "bg-emerald-500" },
-            { title: "History", desc: "Replay every game.", accent: "bg-amber-500" },
-          ].map((f, i) => (
-            <div
-              key={f.title}
-              className={`animate-fade-in-up delay-${i + 2} rounded-xl border border-neutral-800 bg-neutral-900/50 p-5`}
-            >
-              <div className={`mb-3 h-0.5 w-8 rounded-full ${f.accent}`} />
-              <h3 className="text-sm font-medium text-white">{f.title}</h3>
-              <p className="mt-1 text-xs text-neutral-500">{f.desc}</p>
-            </div>
-          ))}
+        {/* Inline features */}
+        <div className="mt-12 grid grid-cols-3 gap-6 border-t border-neutral-800/50 pt-10">
+          <div>
+            <div className="text-sm font-medium text-white">Real-time</div>
+            <p className="mt-1 text-xs text-neutral-500">Instant move sync. No lag, no refresh.</p>
+          </div>
+          <div>
+            <div className="text-sm font-medium text-white">Voice Chat</div>
+            <p className="mt-1 text-xs text-neutral-500">WebRTC peer-to-peer. Talk while you play.</p>
+          </div>
+          <div>
+            <div className="text-sm font-medium text-white">History</div>
+            <p className="mt-1 text-xs text-neutral-500">Every match recorded. Replay any game.</p>
+          </div>
         </div>
       </section>
 
