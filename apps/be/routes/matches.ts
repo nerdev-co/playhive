@@ -1,13 +1,14 @@
 import { createResponse, createError } from "../utils";
 import { getCurrentUser } from "../auth";
 import { getDbInstance } from "@playhive/db";
+import { ErrorCode } from "@playhive/protocol";
 
 const db = getDbInstance();
 
 export async function handleMatchList(request: Request): Promise<Response> {
     const user = await getCurrentUser(request);
     if (!user) {
-        return createError("Unauthorized", 401);
+        return createError("Unauthorized", 401, ErrorCode.NOT_AUTHED);
     }
 
     const url = new URL(request.url);
@@ -41,7 +42,7 @@ export async function handleMatchList(request: Request): Promise<Response> {
 export async function handleMatchReplay(request: Request): Promise<Response> {
     const user = await getCurrentUser(request);
     if (!user) {
-        return createError("Unauthorized", 401);
+        return createError("Unauthorized", 401, ErrorCode.NOT_AUTHED);
     }
 
     const url = new URL(request.url);
@@ -49,14 +50,14 @@ export async function handleMatchReplay(request: Request): Promise<Response> {
 
     const match = await db.orm.public.Match.where({ id: matchId }).first();
     if (!match) {
-        return createError("Match not found", 404);
+        return createError("Match not found", 404, ErrorCode.ROOM_NOT_FOUND);
     }
 
     // Verify user participated in this match
     const seats = match.seats as { playerId: string }[];
     const isParticipant = seats.some((s) => s.playerId === user.id);
     if (!isParticipant) {
-        return createError("Forbidden", 403);
+        return createError("Forbidden", 403, ErrorCode.FORBIDDEN);
     }
 
     const events = await db.orm.public.GameEvent.where({ matchId }).all();

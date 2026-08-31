@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@playhive/db": "workspace:*",
+        "@playhive/protocol": "workspace:*",
         "bcryptjs": "^3.0.0",
         "dotenv": "^17.4.2",
         "jose": "^5.2.0",

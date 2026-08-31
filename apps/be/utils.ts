@@ -1,9 +1,16 @@
-export function createResponse<T>(data: T, status = 200): Response {
-    return Response.json(data, { status, headers: corsHeaders() });
+import type { ErrorCode } from "@playhive/protocol";
+
+export function createResponse<T>(data: T, status = 200, extra?: Record<string, string>): Response {
+    return Response.json(data, {
+        status,
+        headers: { ...corsHeaders(), ...extra },
+    });
 }
 
-export function createError(message: string, status = 400): Response {
-    return Response.json({ error: message }, { status, headers: corsHeaders() });
+export function createError(message: string, status = 400, code?: ErrorCode, extra?: Record<string, string>): Response {
+    const body: Record<string, unknown> = { error: message };
+    if (code) body.code = code;
+    return Response.json(body, { status, headers: { ...corsHeaders(), ...extra } });
 }
 
 export function corsHeaders(): Record<string, string> {

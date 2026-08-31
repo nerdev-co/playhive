@@ -5,6 +5,7 @@ import { getCurrentUser } from "../auth";
 import { createResponse, createError } from "../utils";
 import { getDbInstance } from "@playhive/db";
 import { setRoomGateway } from "@playhive/db";
+import { ErrorCode } from "@playhive/protocol";
 
 const db = getDbInstance();
 
@@ -14,13 +15,13 @@ const GATEWAY_ID = process.env.GATEWAY_ID ?? `gateway-${process.env.HOSTNAME ?? 
 export async function handleCreateRoom(request: Request): Promise<Response> {
     const user = await getCurrentUser(request);
     if (!user) {
-        return createError("Unauthorized", 401);
+        return createError("Unauthorized", 401, ErrorCode.NOT_AUTHED);
     }
 
     const body = await request.json();
     const parsed = createRoomSchema.safeParse(body);
     if (!parsed.success) {
-        return createError("Invalid input", 400);
+        return createError("Invalid input", 400, ErrorCode.BAD_REQUEST);
     }
 
     const {
@@ -60,7 +61,7 @@ export async function handleCreateRoom(request: Request): Promise<Response> {
 export async function handleListRooms(request: Request): Promise<Response> {
     const user = await getCurrentUser(request);
     if (!user) {
-        return createError("Unauthorized", 401);
+        return createError("Unauthorized", 401, ErrorCode.NOT_AUTHED);
     }
 
     const url = new URL(request.url);
@@ -93,14 +94,14 @@ export async function handleListRooms(request: Request): Promise<Response> {
 export async function handleGetRoom(request: Request): Promise<Response> {
     const user = await getCurrentUser(request);
     if (!user) {
-        return createError("Unauthorized", 401);
+        return createError("Unauthorized", 401, ErrorCode.NOT_AUTHED);
     }
 
     const url = new URL(request.url);
     const roomId = url.pathname.split("/")[2];
     const room = await db.orm.public.GameRoom.where({ id: roomId }).first();
     if (!room) {
-        return createError("Room not found", 404);
+        return createError("Room not found", 404, ErrorCode.ROOM_NOT_FOUND);
     }
 
     const participants = await db.orm.public.GameParticipant.where({

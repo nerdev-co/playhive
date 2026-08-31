@@ -9,6 +9,15 @@ import { handlePlayerReady, handleStartGame, handleLeaveRoom } from "./players";
 import { handleGameAction, handleRequestState, handlePing } from "./game";
 import { sendEnvelope, createEnvelope, clients, rooms, gameStates, broadcastToRoom } from "../utils";
 
+function wsLog(level: "info" | "warn" | "error", msg: string, data?: Record<string, unknown>) {
+    const ts = new Date().toISOString();
+    const base = `${ts} [${level.toUpperCase().padEnd(5)}] [ws-gw] ${msg}`;
+    const out = data ? `${base} ${JSON.stringify(data)}` : base;
+    if (level === "error") console.error(out);
+    else if (level === "warn") console.warn(out);
+    else console.log(out);
+}
+
 /** Grace period (ms) before a disconnected player is removed from a room. */
 const DISCONNECT_GRACE_MS = 30_000;
 

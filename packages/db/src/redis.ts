@@ -3,6 +3,10 @@ import { createClient } from 'redis';
 const redis = createClient({ url: process.env.REDIS_URL ?? 'redis://localhost:6379' });
 redis.connect().catch(console.error);
 
+export function getRedisClient() {
+  return redis;
+}
+
 export const RedisKeys = {
   presence: (playerId: string) => `presence:${playerId}`,
   queue: (game: string) => `queue:${game}`,

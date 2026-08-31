@@ -8,6 +8,7 @@ import {
 import { createResponse, createError } from "../utils";
 import { getDbInstance } from "@playhive/db";
 import { WS_GATEWAY_URL } from "../config";
+import { ErrorCode } from "@playhive/protocol";
 
 const db = getDbInstance();
 
@@ -15,20 +16,20 @@ export async function handleSignup(request: Request): Promise<Response> {
     const body = await request.json();
     const parsed = signupSchema.safeParse(body);
     if (!parsed.success) {
-        return createError("Invalid input", 400);
+        return createError("Invalid input", 400, ErrorCode.BAD_REQUEST);
     }
 
     const { username, email, password, displayName } = parsed.data;
 
     const existingUser = await db.orm.public.User.where({ username }).first();
     if (existingUser) {
-        return createError("Username already taken", 409);
+        return createError("Username already taken", 409, ErrorCode.BAD_REQUEST);
     }
 
     if (email) {
         const existingEmail = await db.orm.public.User.where({ email }).first();
         if (existingEmail) {
-            return createError("Email already registered", 409);
+            return createError("Email already registered", 409, ErrorCode.BAD_REQUEST);
         }
     }
 
@@ -65,19 +66,19 @@ export async function handleSignin(request: Request): Promise<Response> {
     const body = await request.json();
     const parsed = signinSchema.safeParse(body);
     if (!parsed.success) {
-        return createError("Invalid input", 400);
+        return createError("Invalid input", 400, ErrorCode.BAD_REQUEST);
     }
 
     const { username, password } = parsed.data;
 
     const user = await db.orm.public.User.where({ username }).first();
     if (!user || !user.passwordHash) {
-        return createError("Invalid credentials", 401);
+        return createError("Invalid credentials", 401, ErrorCode.NOT_AUTHED);
     }
 
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
-        return createError("Invalid credentials", 401);
+        return createError("Invalid credentials", 401, ErrorCode.NOT_AUTHED);
     }
 
     const token = await createToken(user.id);
@@ -99,7 +100,7 @@ export async function handleSignin(request: Request): Promise<Response> {
 export async function handleMe(request: Request): Promise<Response> {
     const user = await getCurrentUser(request);
     if (!user) {
-        return createError("Unauthorized", 401);
+        return createError("Unauthorized", 401, ErrorCode.NOT_AUTHED);
     }
     return createResponse({ user });
 }
@@ -107,13 +108,13 @@ export async function handleMe(request: Request): Promise<Response> {
 export async function handleProfile(request: Request): Promise<Response> {
     const user = await getCurrentUser(request);
     if (!user) {
-        return createError("Unauthorized", 401);
+        return createError("Unauthorized", 401, ErrorCode.NOT_AUTHED);
     }
 
     const body = await request.json();
     const parsed = profileSchema.safeParse(body);
     if (!parsed.success) {
-        return createError("Invalid input", 400);
+        return createError("Invalid input", 400, ErrorCode.BAD_REQUEST);
     }
 
     const { displayName, avatar } = parsed.data;
