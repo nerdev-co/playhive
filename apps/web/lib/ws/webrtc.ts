@@ -86,13 +86,14 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      const sdp = { type: offer.type!, sdp: offer.sdp! };
 
       send({
         v: 1,
         type: "MEDIA_OFFER",
         payload: {
           to: targetPlayerId,
-          payload: { sdp: offer },
+          payload: { sdp },
         },
       });
 
@@ -123,7 +124,7 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
         type: "MEDIA_OFFER",
         payload: {
           to: targetPlayerId,
-          payload: { sdp: offer },
+          payload: { sdp: { type: offer.type!, sdp: offer.sdp! } },
         },
       });
       setMediaState((s) => ({ ...s, audio: true }));
@@ -147,7 +148,7 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
         type: "MEDIA_OFFER",
         payload: {
           to: targetPlayerId,
-          payload: { sdp: offer },
+          payload: { sdp: { type: offer.type!, sdp: offer.sdp! } },
         },
       });
       setMediaState((s) => ({ ...s, video: true }));
@@ -184,7 +185,7 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
             type: "MEDIA_ANSWER",
             payload: {
               to: msg.from,
-              payload: { sdp: answer },
+              payload: { sdp: { type: answer.type!, sdp: answer.sdp! } },
             },
           });
         } catch (err) {
