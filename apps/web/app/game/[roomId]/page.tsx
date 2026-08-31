@@ -147,6 +147,21 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     return unsub;
   }, [on, gameType]);
 
+  // Handle ROOM_JOINED — server confirmed join, extract room details
+  useEffect(() => {
+    const unsub = on("ROOM_JOINED", (data: unknown) => {
+      const msg = data as { payload?: { room?: { gameType?: GameType; hostId?: string; seats?: SeatInfo[]; maxPlayers?: number; status?: string } } };
+      if (!msg?.payload?.room) return;
+      const room = msg.payload.room;
+      if (room.gameType && !gameType) setGameType(room.gameType);
+      if (room.hostId) setHostId(room.hostId);
+      if (room.seats) setRoomSeats(room.seats);
+      if (room.maxPlayers) setMaxPlayers(room.maxPlayers);
+      if (room.status) setRoomStatus(room.status);
+    });
+    return unsub;
+  }, [on, gameType]);
+
   // Handle ERROR from server (room not found, not in room, etc.)
   const [serverError, setServerError] = useState<string | null>(null);
   useEffect(() => {

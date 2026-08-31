@@ -80,6 +80,8 @@ export type ServerMessageType =
     | "AUTH_ERROR"
     /** Room was created successfully */
     | "ROOM_CREATED"
+    /** Successfully joined a room */
+    | "ROOM_JOINED"
     /** Room state updated */
     | "ROOM_UPDATE"
     /** Room status changed */

@@ -41,6 +41,7 @@ const SERVER_MESSAGE_TYPES: readonly ServerMessageType[] = [
     "AUTH_OK",
     "AUTH_ERROR",
     "ROOM_CREATED",
+    "ROOM_JOINED",
     "ROOM_UPDATE",
     "ROOM_STATE_CHANGE",
     "PLAYER_JOINED",

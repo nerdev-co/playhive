@@ -398,6 +398,11 @@ export const ServerPayloadSchemas: Record<ServerMessageType, z.ZodTypeAny> = {
         roomId: roomIdSchema,
         room: RoomSnapshotSchema,
     }),
+    /** Successfully joined a room */
+    ROOM_JOINED: z.object({
+        roomId: roomIdSchema,
+        room: RoomSnapshotSchema,
+    }),
     /** Room state updated */
     ROOM_UPDATE: z.object({
         room: RoomSnapshotSchema,

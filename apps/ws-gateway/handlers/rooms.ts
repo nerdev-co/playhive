@@ -14,8 +14,10 @@ import {
     broadcastToRoom,
     clients,
     rooms,
+    gameStates,
     generateShortId,
 } from "../utils";
+import { serializeGameState } from "./gameEngine";
 
 export function handleCreateRoom(
     ws: WebSocket,
@@ -113,12 +115,12 @@ export function handleJoinRoom(
         return;
     }
 
-    if (room.status !== "WAITING") {
+    if (room.status === "FINISHED" || room.status === "ARCHIVED") {
         sendEnvelope(
             ws,
             createEnvelope("ERROR", {
                 code: ErrorCode.GAME_ALREADY_STARTED,
-                message: "Game already started",
+                message: "Game is over",
             }),
         );
         return;
@@ -165,7 +167,7 @@ export function handleJoinRoom(
 
     sendEnvelope(
         ws,
-        createEnvelope("ROOM_CREATED", {
+        createEnvelope("ROOM_JOINED", {
             roomId: room.id,
             room,
         }),
@@ -180,6 +182,22 @@ export function handleJoinRoom(
     for (const [, c] of clients) {
         if (c.ws.readyState === 1) {
             sendEnvelope(c.ws, createEnvelope("ROOM_UPDATE", { room }));
+        }
+    }
+
+    // If joining an IN_PROGRESS room, send the current game state
+    if (room.status === "IN_PROGRESS") {
+        const gs = gameStates.get(room.id);
+        if (gs) {
+            const clientState = serializeGameState(room.gameType, gs.state);
+            sendEnvelope(
+                ws,
+                createEnvelope("GAME_STATE", {
+                    kind: "snapshot",
+                    stateVersion: gs.stateVersion,
+                    state: clientState,
+                }),
+            );
         }
     }
 
