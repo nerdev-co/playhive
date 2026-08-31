@@ -30,14 +30,17 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
-        "@repo/ui": "*",
+        "@playhive/chess": "*",
+        "@playhive/ludo": "*",
+        "@playhive/protocol": "*",
+        "@playhive/ui": "*",
         "next": "16.3.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
       },
       "devDependencies": {
-        "@repo/eslint-config": "*",
-        "@repo/typescript-config": "*",
+        "@playhive/eslint-config": "*",
+        "@playhive/typescript-config": "*",
         "@tailwindcss/postcss": "^4.3.3",
         "@types/node": "^22.15.3",
         "@types/react": "19.2.2",
@@ -52,8 +55,10 @@
       "name": "ws-gateway",
       "version": "0.0.0",
       "dependencies": {
+        "@playhive/chess": "*",
         "@playhive/db": "workspace:*",
-        "protocol": "workspace:*",
+        "@playhive/ludo": "workspace:*",
+        "@playhive/protocol": "workspace:*",
         "ws": "^8.21.3",
       },
       "devDependencies": {
@@ -76,9 +81,10 @@
         "zod": "^3.23.8",
       },
       "devDependencies": {
+        "@playhive/eslint-config": "*",
+        "@playhive/typescript-config": "*",
+        "@prisma/cli": "^8.0.0-rc.12",
         "@prisma/cli-engine": "0.2.3",
-        "@repo/eslint-config": "*",
-        "@repo/typescript-config": "*",
         "@types/bcryptjs": "^3.0.0",
         "@types/node": "^22.15.3",
         "prisma": "^8.0.0-rc.10",
@@ -86,8 +92,31 @@
         "typescript": "5.9.2",
       },
     },
+    "packages/engines/chess": {
+      "name": "@playhive/chess",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@playhive/eslint-config": "*",
+        "@playhive/typescript-config": "*",
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
+    "packages/engines/ludo": {
+      "name": "@playhive/ludo",
+      "version": "0.0.0",
+      "dependencies": {
+        "@playhive/protocol": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5",
+      },
+    },
     "packages/eslint-config": {
-      "name": "@repo/eslint-config",
+      "name": "@playhive/eslint-config",
       "version": "0.0.0",
       "devDependencies": {
         "@eslint/js": "^9.39.1",
@@ -104,7 +133,7 @@
       },
     },
     "packages/protocol": {
-      "name": "protocol",
+      "name": "@playhive/protocol",
       "devDependencies": {
         "@types/bun": "latest",
       },
@@ -113,11 +142,11 @@
       },
     },
     "packages/typescript-config": {
-      "name": "@repo/typescript-config",
+      "name": "@playhive/typescript-config",
       "version": "0.0.0",
     },
     "packages/ui": {
-      "name": "@repo/ui",
+      "name": "@playhive/ui",
       "version": "0.0.0",
       "dependencies": {
         "class-variance-authority": "^0.7.0",
@@ -126,8 +155,8 @@
         "react-dom": "^19.2.0",
       },
       "devDependencies": {
-        "@repo/eslint-config": "*",
-        "@repo/typescript-config": "*",
+        "@playhive/eslint-config": "*",
+        "@playhive/typescript-config": "*",
         "@types/node": "^22.15.3",
         "@types/react": "19.2.2",
         "@types/react-dom": "19.2.2",
@@ -525,7 +554,21 @@
 
     "@oxc-project/types": ["@oxc-project/types@0.139.0", "", {}, "sha512-r9gHphtCs+1M7J0pw6Sn/hh/Wpa/iQrOOkrNAlVLF/gHq+/CJmHIWKKUUhdWjcD6CIa8idarspCsASiXCXvFUw=="],
 
+    "@playhive/chess": ["@playhive/chess@workspace:packages/engines/chess"],
+
     "@playhive/db": ["@playhive/db@workspace:packages/db"],
+
+    "@playhive/eslint-config": ["@playhive/eslint-config@workspace:packages/eslint-config"],
+
+    "@playhive/ludo": ["@playhive/ludo@workspace:packages/engines/ludo"],
+
+    "@playhive/protocol": ["@playhive/protocol@workspace:packages/protocol"],
+
+    "@playhive/typescript-config": ["@playhive/typescript-config@workspace:packages/typescript-config"],
+
+    "@playhive/ui": ["@playhive/ui@workspace:packages/ui"],
+
+    "@prisma/cli": ["@prisma/cli@8.0.0-rc.12", "", { "dependencies": { "@manypkg/tools": "^2.1.2", "@prisma/cli-engine": "0.3.0", "@prisma/composer-cli": "0.16.0", "@prisma/compute-sdk": "0.42.0", "@prisma/management-api-sdk": "1.69.0", "@prisma/orm-toolchain": "8.0.0-rc.8", "@vercel/detect-agent": "^1.2.3", "better-result": "^2.9.2", "dotenv": "^17.4.2", "execa": "^9.6.1", "open": "^11.0.0" }, "bin": { "prisma-cli": "./dist/cli.js" } }, "sha512-UHHdegfF5cJBiOX00k4DfCZL9fYk1Xnjq1bp4NDviiZqIZA4LScAsfaHHW5moRF+5bX9dv+hCL27++wch0EJBA=="],
 
     "@prisma/cli-engine": ["@prisma/cli-engine@0.2.3", "", { "dependencies": { "@clack/prompts": "1.5.0", "@prisma/management-api-sdk": "1.55.0", "@stricli/core": "1.3.0", "c12": "3.3.4", "colorette": "^2.0.20", "package-manager-detector": "1.8.0", "string-width": "^8.2.1" } }, "sha512-+OySr3NnF1BT6Gj34jKBBWwdQyzPL0YQVMygm0nn4qDRmB5OEYdlz4tS0Nw6HGhnTA82czEl05wTbX821VbBOA=="],
 
@@ -533,11 +576,11 @@
 
     "@prisma/client-runtime-utils": ["@prisma/client-runtime-utils@7.10.0", "", {}, "sha512-cnCy7lUV8/CctgKVEmqAbSLAmwqJdE/qAlqTBk/0NDk59zEb2cZ0M0M0E4vVPnqbSEYudRroQDvOWfUZH6RIfw=="],
 
-    "@prisma/composer": ["@prisma/composer@0.14.0", "", { "dependencies": { "@prisma/management-api-sdk": "^1.60.0", "@standard-schema/spec": "^1.1.0", "alchemy": "2.0.0-beta.74", "arktype": "^2.2.3", "c12": "^3.3.4", "effect": "4.0.0-rc.111", "esbuild": "^0.28.1" } }, "sha512-XRXadDM5+zpEDZIW602asV7YFfwbC+BU2cWLXQw0l1QddOTlvSquvZKB20n8Sg9x1pRm279Pmo0eGuB0I/VLPg=="],
+    "@prisma/composer": ["@prisma/composer@0.16.0", "", { "dependencies": { "@effect/sql-d1": "4.0.0-rc.112", "@effect/sql-sqlite-do": "4.0.0-rc.112", "@prisma/management-api-sdk": "^1.60.0", "@standard-schema/spec": "^1.1.0", "alchemy": "2.0.0-beta.74", "arktype": "^2.2.3", "c12": "^3.3.4", "effect": "4.0.0-rc.112", "esbuild": "^0.28.1" } }, "sha512-cT5Qll+H3aZaxCi2KO4s0z23De9y4JsrLtzz3MLvFTA10jRPX4Qobyv3TG3E8SeTklebu6IkMcrKHWHUQyLWFg=="],
 
-    "@prisma/composer-cli": ["@prisma/composer-cli@0.14.0", "", { "dependencies": { "@prisma/composer": "0.14.0", "alchemy": "2.0.0-beta.74", "c12": "^3.3.4", "effect": "4.0.0-rc.111", "esbuild": "^0.28.1" }, "peerDependencies": { "@prisma/cli-engine": "0.2.3" }, "bin": { "prisma-composer": "dist/bin.mjs" } }, "sha512-07LbfPHvj3Qm4hrheYzPmsWP5Ob6S9nahEHtp+0o9JRr/yeq/hiuBdtjaIgoZ6EAk1Dxp1JuvZ7rCXIXvnYWsA=="],
+    "@prisma/composer-cli": ["@prisma/composer-cli@0.16.0", "", { "dependencies": { "@prisma/composer": "0.16.0", "alchemy": "2.0.0-beta.74", "c12": "^3.3.4", "effect": "4.0.0-rc.112", "esbuild": "^0.28.1" }, "peerDependencies": { "@prisma/cli-engine": "0.3.0" }, "bin": { "prisma-composer": "dist/bin.mjs" } }, "sha512-JuVokK1tpR+SlVJu4OAlJck+94EgJXWx54J6QiDxBtqvHRDJLt9iEzhFa/mshjpDwQoNwQeiHh3Cjb4O+lXqPQ=="],
 
-    "@prisma/compute-sdk": ["@prisma/compute-sdk@0.39.0", "", { "dependencies": { "@vercel/nft": "^1.10.2", "better-result": "^2.7.0", "jiti": "^2.7.0", "magicast": "^0.5.3", "picomatch": "^4.0.4", "tar-stream": "^3.1.8", "tiny-invariant": "1.3.3", "ws": "^8.20.0", "yaml": "^2.8.2" }, "peerDependencies": { "@prisma/management-api-sdk": "^1.44.0" } }, "sha512-Ir4yuCiqyv7XjhqsqolKZjXzzMCFiZJ4vvk1jl0dn6MjZx1j6puojD+1BLbCE8ty0NakaOyhWmXWyO63YeUf/Q=="],
+    "@prisma/compute-sdk": ["@prisma/compute-sdk@0.42.0", "", { "dependencies": { "@vercel/nft": "^1.10.2", "better-result": "^2.7.0", "jiti": "^2.7.0", "magicast": "^0.5.3", "picomatch": "^4.0.4", "tar-stream": "^3.1.8", "tiny-invariant": "1.3.3", "ws": "^8.20.0", "yaml": "^2.8.2" }, "peerDependencies": { "@prisma/management-api-sdk": "^1.69.0" } }, "sha512-Rtgjd5tX/5mWp+wzcar+NiyKRPTpPaPhGtvq4WtkTnJaYKGO6cH5a/P51JQ3GapTE3hnFPDWfA33QiUwFtkPHQ=="],
 
     "@prisma/credentials-store": ["@prisma/credentials-store@7.10.0", "", { "dependencies": { "xdg-app-paths": "8.3.0" } }, "sha512-zsW58wvyvzcA3/bzlu87/2+MbuS+TiqjLkTZ14moWOFRJcJ0vPczZLVAoQZeH2qHT5XRe3idwZ+0gx5HoRW0gQ=="],
 
@@ -553,7 +596,7 @@
 
     "@prisma/get-platform": ["@prisma/get-platform@5.22.0", "", { "dependencies": { "@prisma/debug": "5.22.0" } }, "sha512-pHhpQdr1UPFpt+zFfnPazhulaZYCUqeIcPpJViYoq9R+D/yw4fjE+CtnsnKzPYm0ddUbeXUzjGVGIRVgPDCk4Q=="],
 
-    "@prisma/management-api-sdk": ["@prisma/management-api-sdk@1.55.0", "", { "dependencies": { "openapi-fetch": "0.14.0" } }, "sha512-WuDDOhxOHfROGY7QAU6wtlbWR0diNwfsQw1epQkhalvgOUe/JzIjxqpBpQzMA54zFVlMmcnT6OEiQfwCIKiRjA=="],
+    "@prisma/management-api-sdk": ["@prisma/management-api-sdk@1.69.0", "", { "dependencies": { "openapi-fetch": "0.14.0" } }, "sha512-z3zBWvOjFSWqUwkJcsdkBZzkUaUMEEcKy4QiMfo7n1GqNQvRYkzxzaNRTqmxTjw3thOjmdq+UegIqOU57i7jiA=="],
 
     "@prisma/orm-family-sql": ["@prisma/orm-family-sql@8.0.0-rc.7", "", { "dependencies": { "@prisma/orm-framework": "8.0.0-rc.7", "@prisma/orm-toolchain": "8.0.0-rc.7", "@standard-schema/spec": "^1.1.0", "arktype": "^2.2.2", "pathe": "^2.0.3", "pluralize": "^8.0.0", "ts-toolbelt": "^9.6.0" }, "peerDependencies": { "typescript": ">=5.9" }, "optionalPeers": ["typescript"] }, "sha512-FP10e+mPBSnG3VVsf77dEbeXl55pv6zqFUUx3MrrAkCgSlaitLF3TZwTnmTSTPjn8Ox1q3eSemA8TiKPqcglAQ=="],
 
@@ -563,7 +606,7 @@
 
     "@prisma/orm-target-postgres": ["@prisma/orm-target-postgres@8.0.0-rc.7", "", { "dependencies": { "@prisma/orm-family-sql": "8.0.0-rc.7", "@prisma/orm-framework": "8.0.0-rc.7", "@prisma/orm-toolchain": "8.0.0-rc.7", "@standard-schema/spec": "^1.1.0", "@types/pg": "8.20.4", "arktype": "^2.2.2", "pathe": "^2.0.3", "pg": "8.22.0", "pg-cursor": "^2.21.0" }, "peerDependencies": { "typescript": ">=5.9" }, "optionalPeers": ["typescript"] }, "sha512-jdifcXVRjVW5v5tdxlA58E9Q9fmyG1C6zAtdwGDmfXQYP7MluPYXbxUMpf0kNywGEvI8nFpgcI+HmllANXMRtg=="],
 
-    "@prisma/orm-toolchain": ["@prisma/orm-toolchain@8.0.0-rc.7", "", { "dependencies": { "@prisma/orm-framework": "8.0.0-rc.7", "@vercel/detect-agent": "^1.2.4", "arktype": "^2.2.2", "c12": "^3.3.4", "ci-info": "^4.3.1", "clipanion": "4.0.0-rc.4", "closest-match": "^1.3.3", "colorette": "^2.0.20", "esbuild": "^0.28.2", "jsonc-parser": "^3.3.1", "package-manager-detector": "^1.8.0", "pathe": "^2.0.3", "prettier": "^3.9.6", "string-width": "^8.2.2", "strip-ansi": "^7.2.0", "vscode-languageserver": "10.1.0", "vscode-languageserver-textdocument": "1.0.12", "wrap-ansi": "^10.0.0" }, "peerDependencies": { "@prisma/cli-engine": "0.2.3", "typescript": ">=5.9", "vite": "^7.0.0 || ^8.0.0" }, "optionalPeers": ["typescript", "vite"] }, "sha512-BLmdSGzFmmTt3yXWbACODsPn7chSEfqGPdwL8C4CHWb0S0QFzKMY48Ygc5Mhmcj/h0pthhr6CeRr/unKOgSsuw=="],
+    "@prisma/orm-toolchain": ["@prisma/orm-toolchain@8.0.0-rc.8", "", { "dependencies": { "@prisma/orm-framework": "8.0.0-rc.8", "@vercel/detect-agent": "^1.2.4", "arktype": "^2.2.2", "c12": "^3.3.4", "ci-info": "^4.3.1", "clipanion": "4.0.0-rc.4", "closest-match": "^1.3.3", "colorette": "^2.0.20", "esbuild": "^0.28.2", "jsonc-parser": "^3.3.1", "package-manager-detector": "^1.8.0", "pathe": "^2.0.3", "prettier": "^3.9.6", "string-width": "^8.2.2", "strip-ansi": "^7.2.0", "vscode-languageserver": "10.1.0", "vscode-languageserver-textdocument": "1.0.12", "wrap-ansi": "^10.0.0" }, "peerDependencies": { "@prisma/cli-engine": "0.3.0", "typescript": ">=5.9", "vite": "^7.0.0 || ^8.0.0" }, "optionalPeers": ["typescript", "vite"] }, "sha512-dKjgH3L4adsuhFwEcMO/8er8E7WOR6btTTR1NaOlef4lu1EHWvYFRVPGoJOTTRTSvASC8eAQmuMTPYpuZNsdWg=="],
 
     "@prisma/query-plan-executor": ["@prisma/query-plan-executor@7.2.0", "", {}, "sha512-EOZmNzcV8uJ0mae3DhTsiHgoNCuu1J9mULQpGCh62zN3PxPTd+qI9tJvk5jOst8WHKQNwJWR3b39t0XvfBB0WQ=="],
 
@@ -578,12 +621,6 @@
     "@redis/search": ["@redis/search@6.2.1", "", { "peerDependencies": { "@redis/client": "^6.2.1" } }, "sha512-2vfOAOyYFE7UUw3sBBlkqqruBtOUS4HRY5MtW4hp83llrwvtrTE4r22CEqXddlV+54zkLxBE4nmsIJ/dpezQrQ=="],
 
     "@redis/time-series": ["@redis/time-series@6.2.1", "", { "peerDependencies": { "@redis/client": "^6.2.1" } }, "sha512-kiYniph04dJOole+L359B6C9E+jYS2uDP7hca6Onj0xF38ZIpyxARO0Iq0W4ZRn1e8Q6vqW00QFZVSMRA/2Ijw=="],
-
-    "@repo/eslint-config": ["@repo/eslint-config@workspace:packages/eslint-config"],
-
-    "@repo/typescript-config": ["@repo/typescript-config@workspace:packages/typescript-config"],
-
-    "@repo/ui": ["@repo/ui@workspace:packages/ui"],
 
     "@rolldown/binding-android-arm-eabi": ["@rolldown/binding-android-arm-eabi@1.2.5", "", { "os": "android", "cpu": "arm" }, "sha512-DLe/i+l8ynIBY7XEQ191TeZvCoowIGa18R+dIV30GW7DiOtp74i/xX8hs8GUjW5ARV7VZuie3d6AumSmCwbeRA=="],
 
@@ -959,7 +996,7 @@
 
     "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
 
-    "effect": ["effect@4.0.0-rc.111", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "fast-check": "^4.9.0", "msgpackr": "^2.0.5" } }, "sha512-ASd5L58EIR0CUNueZNKKjSsyOCd+2alxOAIaTcHaqkJkPsaYSsw5Cg/cfANk5K4Jr2YsX756xvX11shzqsreWA=="],
+    "effect": ["effect@4.0.0-rc.112", "", { "dependencies": { "fast-check": "^4.9.0", "msgpackr": "^2.0.5" } }, "sha512-wXxwuh1Ywnv4cPRM3Wfa0vDwuOHnZ1TsTgHJkG9XgzND6inhBH9n1vBxhg3iIXOia/OrpmvVmd3lrD4vq6bF3A=="],
 
     "emoji-regex": ["emoji-regex@10.6.0", "", {}, "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A=="],
 
@@ -1473,8 +1510,6 @@
 
     "proper-lockfile": ["proper-lockfile@4.1.2", "", { "dependencies": { "graceful-fs": "^4.2.4", "retry": "^0.12.0", "signal-exit": "^3.0.2" } }, "sha512-TjNPblN4BwAWMXU8s9AEz4JmQxnD1NNL7bNOY/AKUzyamc379FWASUhc/K1pL2noVb+XmZKLL68cjzLsiOAMaA=="],
 
-    "protocol": ["protocol@workspace:packages/protocol"],
-
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
     "pure-rand": ["pure-rand@8.4.2", "", {}, "sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng=="],
@@ -1777,11 +1812,27 @@
 
     "@octokit/plugin-rest-endpoint-methods/@octokit/types": ["@octokit/types@16.0.0", "", { "dependencies": { "@octokit/openapi-types": "^27.0.0" } }, "sha512-sKq+9r1Mm4efXW1FCk7hFSeJo4QKreL/tTbR0rz/qx/r1Oa2VV83LTA/H/MuCOX7uCIJmQVRKBcbmWoySjAnSg=="],
 
+    "@prisma/cli/@prisma/cli-engine": ["@prisma/cli-engine@0.3.0", "", { "dependencies": { "@clack/prompts": "1.5.0", "@stricli/core": "1.3.0", "c12": "3.3.4", "colorette": "^2.0.20", "package-manager-detector": "1.8.0", "string-width": "^8.2.1" }, "peerDependencies": { "@prisma/management-api-sdk": "^1.55.0" } }, "sha512-uurQyGX46Wx/J/A//AUwX/KN+DC+byemStM1b2Xi1t3aHhQ21eIbnRDCWNVxCMdDh8CZJ7fY9hgy+tJDbslFlA=="],
+
+    "@prisma/cli-engine/@prisma/management-api-sdk": ["@prisma/management-api-sdk@1.55.0", "", { "dependencies": { "openapi-fetch": "0.14.0" } }, "sha512-WuDDOhxOHfROGY7QAU6wtlbWR0diNwfsQw1epQkhalvgOUe/JzIjxqpBpQzMA54zFVlMmcnT6OEiQfwCIKiRjA=="],
+
     "@prisma/client/prisma": ["prisma@5.22.0", "", { "dependencies": { "@prisma/engines": "5.22.0" }, "optionalDependencies": { "fsevents": "2.3.3" }, "bin": { "prisma": "build/index.js" } }, "sha512-vtpjW3XuYCSnMsNVBjLMNkTj6OZbudcPPTPYHqX0CJfpcdWciI1dM8uHETwmDxxiqEwCIE6WvXucWUetJgfu/A=="],
 
     "@prisma/composer/@prisma/management-api-sdk": ["@prisma/management-api-sdk@1.70.0", "", { "dependencies": { "openapi-fetch": "0.14.0" } }, "sha512-QmJo0ASv+6I/6wbdE0b8aoqrx2gr6ZKS0Y6Ui1q/1zvulD/uiTVdDdUcDFktlfXHZCQvu//siNWPiILknq+68A=="],
 
+    "@prisma/composer-cli/@prisma/cli-engine": ["@prisma/cli-engine@0.3.0", "", { "dependencies": { "@clack/prompts": "1.5.0", "@stricli/core": "1.3.0", "c12": "3.3.4", "colorette": "^2.0.20", "package-manager-detector": "1.8.0", "string-width": "^8.2.1" }, "peerDependencies": { "@prisma/management-api-sdk": "^1.55.0" } }, "sha512-uurQyGX46Wx/J/A//AUwX/KN+DC+byemStM1b2Xi1t3aHhQ21eIbnRDCWNVxCMdDh8CZJ7fY9hgy+tJDbslFlA=="],
+
     "@prisma/dev/@prisma/get-platform": ["@prisma/get-platform@7.2.0", "", { "dependencies": { "@prisma/debug": "7.2.0" } }, "sha512-k1V0l0Td1732EHpAfi2eySTezyllok9dXb6UQanajkJQzPUGi3vO2z7jdkz67SypFTdmbnyGYxvEvYZdZsMAVA=="],
+
+    "@prisma/orm-family-sql/@prisma/orm-toolchain": ["@prisma/orm-toolchain@8.0.0-rc.7", "", { "dependencies": { "@prisma/orm-framework": "8.0.0-rc.7", "@vercel/detect-agent": "^1.2.4", "arktype": "^2.2.2", "c12": "^3.3.4", "ci-info": "^4.3.1", "clipanion": "4.0.0-rc.4", "closest-match": "^1.3.3", "colorette": "^2.0.20", "esbuild": "^0.28.2", "jsonc-parser": "^3.3.1", "package-manager-detector": "^1.8.0", "pathe": "^2.0.3", "prettier": "^3.9.6", "string-width": "^8.2.2", "strip-ansi": "^7.2.0", "vscode-languageserver": "10.1.0", "vscode-languageserver-textdocument": "1.0.12", "wrap-ansi": "^10.0.0" }, "peerDependencies": { "@prisma/cli-engine": "0.2.3", "typescript": ">=5.9", "vite": "^7.0.0 || ^8.0.0" }, "optionalPeers": ["typescript", "vite"] }, "sha512-BLmdSGzFmmTt3yXWbACODsPn7chSEfqGPdwL8C4CHWb0S0QFzKMY48Ygc5Mhmcj/h0pthhr6CeRr/unKOgSsuw=="],
+
+    "@prisma/orm-postgres/@prisma/orm-toolchain": ["@prisma/orm-toolchain@8.0.0-rc.7", "", { "dependencies": { "@prisma/orm-framework": "8.0.0-rc.7", "@vercel/detect-agent": "^1.2.4", "arktype": "^2.2.2", "c12": "^3.3.4", "ci-info": "^4.3.1", "clipanion": "4.0.0-rc.4", "closest-match": "^1.3.3", "colorette": "^2.0.20", "esbuild": "^0.28.2", "jsonc-parser": "^3.3.1", "package-manager-detector": "^1.8.0", "pathe": "^2.0.3", "prettier": "^3.9.6", "string-width": "^8.2.2", "strip-ansi": "^7.2.0", "vscode-languageserver": "10.1.0", "vscode-languageserver-textdocument": "1.0.12", "wrap-ansi": "^10.0.0" }, "peerDependencies": { "@prisma/cli-engine": "0.2.3", "typescript": ">=5.9", "vite": "^7.0.0 || ^8.0.0" }, "optionalPeers": ["typescript", "vite"] }, "sha512-BLmdSGzFmmTt3yXWbACODsPn7chSEfqGPdwL8C4CHWb0S0QFzKMY48Ygc5Mhmcj/h0pthhr6CeRr/unKOgSsuw=="],
+
+    "@prisma/orm-target-postgres/@prisma/orm-toolchain": ["@prisma/orm-toolchain@8.0.0-rc.7", "", { "dependencies": { "@prisma/orm-framework": "8.0.0-rc.7", "@vercel/detect-agent": "^1.2.4", "arktype": "^2.2.2", "c12": "^3.3.4", "ci-info": "^4.3.1", "clipanion": "4.0.0-rc.4", "closest-match": "^1.3.3", "colorette": "^2.0.20", "esbuild": "^0.28.2", "jsonc-parser": "^3.3.1", "package-manager-detector": "^1.8.0", "pathe": "^2.0.3", "prettier": "^3.9.6", "string-width": "^8.2.2", "strip-ansi": "^7.2.0", "vscode-languageserver": "10.1.0", "vscode-languageserver-textdocument": "1.0.12", "wrap-ansi": "^10.0.0" }, "peerDependencies": { "@prisma/cli-engine": "0.2.3", "typescript": ">=5.9", "vite": "^7.0.0 || ^8.0.0" }, "optionalPeers": ["typescript", "vite"] }, "sha512-BLmdSGzFmmTt3yXWbACODsPn7chSEfqGPdwL8C4CHWb0S0QFzKMY48Ygc5Mhmcj/h0pthhr6CeRr/unKOgSsuw=="],
+
+    "@prisma/orm-toolchain/@prisma/cli-engine": ["@prisma/cli-engine@0.3.0", "", { "dependencies": { "@clack/prompts": "1.5.0", "@stricli/core": "1.3.0", "c12": "3.3.4", "colorette": "^2.0.20", "package-manager-detector": "1.8.0", "string-width": "^8.2.1" }, "peerDependencies": { "@prisma/management-api-sdk": "^1.55.0" } }, "sha512-uurQyGX46Wx/J/A//AUwX/KN+DC+byemStM1b2Xi1t3aHhQ21eIbnRDCWNVxCMdDh8CZJ7fY9hgy+tJDbslFlA=="],
+
+    "@prisma/orm-toolchain/@prisma/orm-framework": ["@prisma/orm-framework@8.0.0-rc.8", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "arktype": "^2.2.2", "pathe": "^2.0.3", "uniku": "^0.5.0" }, "peerDependencies": { "typescript": ">=5.9" }, "optionalPeers": ["typescript"] }, "sha512-bSa1TCoXMk9PQ8FC+2038+Ug0O6W52CPLKkTHpOhm6OAkg7OYtUswUVeiOgkTatfjl3O7GNOCNHvRROhbIBvpA=="],
 
     "@redis/client/cluster-key-slot": ["cluster-key-slot@1.1.2", "", {}, "sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA=="],
 
@@ -1845,6 +1896,14 @@
 
     "npm-run-path/path-key": ["path-key@4.0.0", "", {}, "sha512-haREypq7xkM7ErfgIyA0z+Bj4AGKlMSdlQE2jvJo6huWD1EdkKYV+G/T4nq0YEF2vgTT8kqMFKo1uHn950r4SQ=="],
 
+    "prisma/@prisma/composer-cli": ["@prisma/composer-cli@0.14.0", "", { "dependencies": { "@prisma/composer": "0.14.0", "alchemy": "2.0.0-beta.74", "c12": "^3.3.4", "effect": "4.0.0-rc.111", "esbuild": "^0.28.1" }, "peerDependencies": { "@prisma/cli-engine": "0.2.3" }, "bin": { "prisma-composer": "dist/bin.mjs" } }, "sha512-07LbfPHvj3Qm4hrheYzPmsWP5Ob6S9nahEHtp+0o9JRr/yeq/hiuBdtjaIgoZ6EAk1Dxp1JuvZ7rCXIXvnYWsA=="],
+
+    "prisma/@prisma/compute-sdk": ["@prisma/compute-sdk@0.39.0", "", { "dependencies": { "@vercel/nft": "^1.10.2", "better-result": "^2.7.0", "jiti": "^2.7.0", "magicast": "^0.5.3", "picomatch": "^4.0.4", "tar-stream": "^3.1.8", "tiny-invariant": "1.3.3", "ws": "^8.20.0", "yaml": "^2.8.2" }, "peerDependencies": { "@prisma/management-api-sdk": "^1.44.0" } }, "sha512-Ir4yuCiqyv7XjhqsqolKZjXzzMCFiZJ4vvk1jl0dn6MjZx1j6puojD+1BLbCE8ty0NakaOyhWmXWyO63YeUf/Q=="],
+
+    "prisma/@prisma/management-api-sdk": ["@prisma/management-api-sdk@1.55.0", "", { "dependencies": { "openapi-fetch": "0.14.0" } }, "sha512-WuDDOhxOHfROGY7QAU6wtlbWR0diNwfsQw1epQkhalvgOUe/JzIjxqpBpQzMA54zFVlMmcnT6OEiQfwCIKiRjA=="],
+
+    "prisma/@prisma/orm-toolchain": ["@prisma/orm-toolchain@8.0.0-rc.7", "", { "dependencies": { "@prisma/orm-framework": "8.0.0-rc.7", "@vercel/detect-agent": "^1.2.4", "arktype": "^2.2.2", "c12": "^3.3.4", "ci-info": "^4.3.1", "clipanion": "4.0.0-rc.4", "closest-match": "^1.3.3", "colorette": "^2.0.20", "esbuild": "^0.28.2", "jsonc-parser": "^3.3.1", "package-manager-detector": "^1.8.0", "pathe": "^2.0.3", "prettier": "^3.9.6", "string-width": "^8.2.2", "strip-ansi": "^7.2.0", "vscode-languageserver": "10.1.0", "vscode-languageserver-textdocument": "1.0.12", "wrap-ansi": "^10.0.0" }, "peerDependencies": { "@prisma/cli-engine": "0.2.3", "typescript": ">=5.9", "vite": "^7.0.0 || ^8.0.0" }, "optionalPeers": ["typescript", "vite"] }, "sha512-BLmdSGzFmmTt3yXWbACODsPn7chSEfqGPdwL8C4CHWb0S0QFzKMY48Ygc5Mhmcj/h0pthhr6CeRr/unKOgSsuw=="],
+
     "proper-lockfile/signal-exit": ["signal-exit@3.0.7", "", {}, "sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ=="],
 
     "readable-stream/isarray": ["isarray@1.0.0", "", {}, "sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ=="],
@@ -1888,6 +1947,10 @@
     "glob/minimatch/brace-expansion": ["brace-expansion@5.0.9", "", { "dependencies": { "balanced-match": "^4.0.2" } }, "sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg=="],
 
     "ink/wrap-ansi/string-width": ["string-width@7.2.0", "", { "dependencies": { "emoji-regex": "^10.3.0", "get-east-asian-width": "^1.0.0", "strip-ansi": "^7.1.0" } }, "sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ=="],
+
+    "prisma/@prisma/composer-cli/@prisma/composer": ["@prisma/composer@0.14.0", "", { "dependencies": { "@prisma/management-api-sdk": "^1.60.0", "@standard-schema/spec": "^1.1.0", "alchemy": "2.0.0-beta.74", "arktype": "^2.2.3", "c12": "^3.3.4", "effect": "4.0.0-rc.111", "esbuild": "^0.28.1" } }, "sha512-XRXadDM5+zpEDZIW602asV7YFfwbC+BU2cWLXQw0l1QddOTlvSquvZKB20n8Sg9x1pRm279Pmo0eGuB0I/VLPg=="],
+
+    "prisma/@prisma/composer-cli/effect": ["effect@4.0.0-rc.111", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "fast-check": "^4.9.0", "msgpackr": "^2.0.5" } }, "sha512-ASd5L58EIR0CUNueZNKKjSsyOCd+2alxOAIaTcHaqkJkPsaYSsw5Cg/cfANk5K4Jr2YsX756xvX11shzqsreWA=="],
 
     "vite/lightningcss/lightningcss-android-arm64": ["lightningcss-android-arm64@1.33.0", "", { "os": "android", "cpu": "arm64" }, "sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg=="],
 
@@ -1944,5 +2007,7 @@
     "@typescript-eslint/typescript-estree/minimatch/brace-expansion/balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
 
     "glob/minimatch/brace-expansion/balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
+
+    "prisma/@prisma/composer-cli/@prisma/composer/@prisma/management-api-sdk": ["@prisma/management-api-sdk@1.70.0", "", { "dependencies": { "openapi-fetch": "0.14.0" } }, "sha512-QmJo0ASv+6I/6wbdE0b8aoqrx2gr6ZKS0Y6Ui1q/1zvulD/uiTVdDdUcDFktlfXHZCQvu//siNWPiILknq+68A=="],
   }
 }

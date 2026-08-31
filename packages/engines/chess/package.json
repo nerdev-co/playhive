@@ -1,21 +1,22 @@
 {
-  "name": "@repo/chess",
-  "version": "0.0.0",
-  "private": true,
-  "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*.ts"
-  },
-  "scripts": {
-    "lint": "eslint . --max-warnings 0",
-    "check-types": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@repo/eslint-config": "*",
-    "@repo/typescript-config": "*",
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  }
+    "name": "@playhive/chess",
+    "version": "0.0.0",
+    "private": true,
+    "exports": {
+        ".": "./src/index.ts",
+        "./*": "./src/*.ts"
+    },
+    "scripts": {
+        "lint": "eslint . --max-warnings 0",
+        "build": "tsc --noEmit",
+        "check-types": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@playhive/eslint-config": "*",
+        "@playhive/typescript-config": "*",
+        "@types/bun": "latest"
+    },
+    "peerDependencies": {
+        "typescript": "^5"
+    }
 }

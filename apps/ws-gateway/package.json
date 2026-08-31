@@ -7,12 +7,14 @@
     "scripts": {
         "dev": "bun --watch index.ts",
         "start": "bun index.ts",
+        "build": "tsc --noEmit",
         "check-types": "tsc --noEmit"
     },
     "dependencies": {
-        "@playhive/db": "workspace:*",
-    "protocol": "workspace:*",
-    "@playhive/chess-engine": "workspace:*",
+    "@playhive/db": "workspace:*",
+    "@playhive/ludo": "workspace:*",
+    "@playhive/chess": "*",
+    "@playhive/protocol": "workspace:*",
     "ws": "^8.21.3"
     },
     "devDependencies": {
