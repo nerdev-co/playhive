@@ -104,12 +104,13 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
   // Handle GAME_START — get gameType + initialState
   useEffect(() => {
     const unsub = on("GAME_START", (data: unknown) => {
-      const msg = data as { payload?: { gameType?: GameType; seatOrder?: number[]; initialState?: Record<string, unknown> } };
+      const msg = data as { payload?: { gameType?: GameType; seatOrder?: number[]; mySeat?: number; initialState?: Record<string, unknown> } };
       if (!msg?.payload) return;
 
       const type = msg.payload.gameType;
       if (type) setGameType(type);
       if (msg.payload.seatOrder) setSeatOrder(msg.payload.seatOrder);
+      if (msg.payload.mySeat !== undefined) seatRef.current = msg.payload.mySeat;
 
       const initial = msg.payload.initialState;
       if (!initial) return;

@@ -118,19 +118,29 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
             serverState!,
         );
 
-        broadcastToRoom(
-            updatedRoom.id,
-            createEnvelope("GAME_START", {
-                gameType: updatedRoom.gameType,
-                seatOrder,
-                config: {
-                    maxPlayers: updatedRoom.maxPlayers,
-                    media: updatedRoom.settings.media,
-                    private: updatedRoom.settings.private,
-                },
-                initialState: clientState,
-            }),
-        );
+        // Send GAME_START to each player with their individual seat index
+        for (const seat of updatedRoom.seats) {
+            if (!seat.playerId) continue;
+            const c = [...clients.values()].find(
+                (cl) => cl.playerId === seat.playerId,
+            );
+            if (c) {
+                sendEnvelope(
+                    c.ws,
+                    createEnvelope("GAME_START", {
+                        gameType: updatedRoom.gameType,
+                        seatOrder,
+                        mySeat: seat.seat,
+                        config: {
+                            maxPlayers: updatedRoom.maxPlayers,
+                            media: updatedRoom.settings.media,
+                            private: updatedRoom.settings.private,
+                        },
+                        initialState: clientState,
+                    }),
+                );
+            }
+        }
 
         broadcastToRoom(
             updatedRoom.id,
