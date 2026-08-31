@@ -46,6 +46,8 @@ function MiniLudoBoard() {
       {/* Home markers */}
       <div className="absolute left-0 top-0 h-1/3 w-1/3 bg-red-500/30" />
       <div className="absolute bottom-0 right-0 h-1/3 w-1/3 bg-amber-500/30" />
+      {/* Token */}
+      <div className="absolute left-[58%] top-[22%] h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.5)] sm:h-2.5 sm:w-2.5" />
     </div>
   );
 }
