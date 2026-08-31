@@ -155,7 +155,9 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
   useEffect(() => {
     const unsubs = [
       on("MEDIA_OFFER", async (data: unknown) => {
-        const msg = data as { from: string; payload: { sdp: RTCSessionDescriptionInit } };
+        const envelope = data as { type: string; payload?: { from?: string; payload?: { sdp?: RTCSessionDescriptionInit } } };
+        const msg = envelope.payload;
+        if (!msg?.from || !msg?.payload?.sdp) return;
         if (msg.from === targetPlayerId) return;
 
         const pc = getOrCreatePC();
@@ -174,7 +176,9 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
       }),
 
       on("MEDIA_ANSWER", async (data: unknown) => {
-        const msg = data as { from: string; payload: { sdp: RTCSessionDescriptionInit } };
+        const envelope = data as { type: string; payload?: { from?: string; payload?: { sdp?: RTCSessionDescriptionInit } } };
+        const msg = envelope.payload;
+        if (!msg?.payload?.sdp) return;
         if (msg.from === targetPlayerId) return;
         const pc = pcRef.current;
         if (pc) {
@@ -183,7 +187,9 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
       }),
 
       on("MEDIA_ICE", async (data: unknown) => {
-        const msg = data as { from: string; payload: { candidate: RTCIceCandidateInit } };
+        const envelope = data as { type: string; payload?: { from?: string; payload?: { candidate?: RTCIceCandidateInit } } };
+        const msg = envelope.payload;
+        if (!msg?.payload?.candidate) return;
         if (msg.from === targetPlayerId) return;
         const pc = pcRef.current;
         if (pc && msg.payload.candidate) {
