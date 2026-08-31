@@ -47,14 +47,14 @@ Every message is a JSON object:
 | ---------------------- | ---------------------------------------------------------------- |
 | `AUTH`                 | Authenticate with session/guest token.                           |
 | `RESUME`               | Reconnect to a room: `{ roomId, lastStateVersion, lastSeq }`.    |
-| `CREATE_ROOM`          | `{ game, maxPlayers, private, settings: { media } }`.            |
-| `JOIN_ROOM`            | `{ roomId, media: { voice, video } }`.                          |
+| `CREATE_ROOM`          | `{ game, maxPlayers, private, settings }`.                        |
+| `JOIN_ROOM`            | `{ roomId }`.                                                     |
 | `LEAVE_ROOM`           | Leave room (before game start = unseat; forfeit if in progress). |
 | `PLAYER_READY`         | Mark ready.                                                      |
 | `PLAYER_UNREADY`       | Unmark ready.                                                    |
 | `START_GAME`           | Host only. Forces `STARTING` when ready conditions met.          |
 | `GAME_ACTION`          | Game-specific action: `{ seat, action }`.                        |
-| `ROOM_SETTINGS_UPDATE` | Host only. e.g. toggle `settings.media`.                         |
+| `ROOM_SETTINGS_UPDATE` | Host only. e.g. toggle `settings.private`.                        |
 | `QUEUE_JOIN`           | Matchmaking: `{ game, botFill: true, fillAfterMs }`.             |
 | `QUEUE_LEAVE`          | Leave matchmaking queue.                                         |
 | `MEDIA_OFFER`          | `{ to, payload: { sdp } }` — relayed to peer.                    |
@@ -163,15 +163,13 @@ Room settings (host-only mutation):
 
 ```json
 "settings": {
-  "media": { "voice": true, "video": false },
   "maxPlayers": 4,
   "private": true
 }
 ```
 
-`media` gates the whole media plane. Per-player `media` flags in `JOIN_ROOM`
-gate individual participation. The room layer reads `settings.media`; the game
-session and engine never see it.
+Media (voice/video) is controlled per-player during the game via WebRTC toggle.
+The server relays `MEDIA_OFFER/ANSWER/ICE` signals without gating.
 
 ## Event model
 
@@ -313,9 +311,9 @@ the forfeit window.
 - **Hidden information: interface hook now, games later.** `viewFor(state,
 seat)` is part of the engine contract but unused by chess/ludo (perfect
   information). Events are always public-safe. See `engine.md`.
-- **Media in v1: relay + gating only.** Gateway relays `MEDIA_*` and enforces
-  `settings.media`; client WebRTC UI and TURN deployment are Phase 6. TURN is
-  self-hosted **coturn** in docker-compose (dev), managed provider
+- **Media in v1: relay only.** Gateway relays `MEDIA_*` signals between peers.
+  No server-side gating — each player controls their own mic/camera toggle.
+  TURN is self-hosted **coturn** in docker-compose (dev), managed provider
   (Twilio/Cloudflare Calls) at scale. No SFU for ≤4 players.
 
 ## Open questions
