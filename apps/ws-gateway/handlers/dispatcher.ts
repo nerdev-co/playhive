@@ -1,13 +1,19 @@
 import { WebSocket } from "ws";
 
-import { type MessageType, type ClientMessageType, ErrorCode } from "protocol";
-import { isClientMessage, parseEnvelope } from "protocol";
+import { type MessageType, type ClientMessageType, ErrorCode } from "@playhive/protocol";
+import { isClientMessage, parseEnvelope } from "@playhive/protocol";
 
 import { handleAuth } from "./auth";
 import { handleCreateRoom, handleJoinRoom } from "./rooms";
 import { handlePlayerReady, handleStartGame, handleLeaveRoom } from "./players";
-import { handleGameAction, handlePing } from "./game";
-import { sendEnvelope, createEnvelope, clients, rooms, gameStates } from "../utils";
+import { handleGameAction, handleRequestState, handlePing } from "./game";
+import { sendEnvelope, createEnvelope, clients, rooms, gameStates, broadcastToRoom } from "../utils";
+
+/** Grace period (ms) before a disconnected player is removed from a room. */
+const DISCONNECT_GRACE_MS = 30_000;
+
+/** Timers for disconnected players — keyed by playerId. */
+const disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function handleMessage(
     ws: WebSocket,
@@ -51,11 +57,28 @@ export function handleMessage(
                     ws,
                     playerId,
                     envelope.payload as {
-                        inviteCode: string;
+                        roomId: string;
                         media: { voice: boolean; video: boolean };
                     },
                 );
                 break;
+            case "LIST_ROOMS": {
+                const publicRooms = [...rooms.values()]
+                    .filter(r => r.status === "WAITING" && !r.settings.private)
+                    .map(r => ({
+                        id: r.id,
+                        name: r.name,
+                        gameType: r.gameType,
+                        maxPlayers: r.maxPlayers,
+                        status: r.status,
+                        hostId: r.hostId,
+                        seats: r.seats,
+                        settings: r.settings,
+                        createdAt: r.createdAt,
+                    }));
+                sendEnvelope(ws, createEnvelope("ROOM_LIST", { rooms: publicRooms }));
+                break;
+            }
             case "PLAYER_READY":
                 handlePlayerReady(playerId, true);
                 break;
@@ -80,43 +103,109 @@ export function handleMessage(
             case "PING":
                 handlePing(ws);
                 break;
+            case "REQUEST_STATE": {
+                handleRequestState(playerId).catch((err) =>
+                    console.error("[dispatcher] REQUEST_STATE failed:", err),
+                );
+                break;
+            }
             case "RESUME": {
                 const { roomId } = envelope.payload as { roomId: string };
                 const client = [...clients.entries()].find(([, c]) => c.ws === ws)?.[1];
-                if (!client) break;
+                if (!client) {
+                    console.log(`[ws] RESUME: no client found for ws`);
+                    break;
+                }
 
                 const room = rooms.get(roomId);
-                if (!room || room.status !== "IN_PROGRESS") {
+                if (!room) {
+                    console.log(`[ws] RESUME: room ${roomId} not found`);
                     sendEnvelope(ws, createEnvelope("ERROR", {
                         code: ErrorCode.ROOM_NOT_FOUND,
-                        message: "Game not in progress",
+                        message: "Room not found",
                     }));
                     break;
                 }
 
                 // Find the player's seat in this room
-                const seatIdx = room.seats.findIndex(s => s.playerId === client.playerId);
+                let seatIdx = room.seats.findIndex(s => s.playerId === client.playerId);
+
                 if (seatIdx === -1) {
-                    sendEnvelope(ws, createEnvelope("ERROR", {
-                        code: ErrorCode.FORBIDDEN,
-                        message: "Not in this room",
-                    }));
-                    break;
+                    // Player not in any seat — check for orphaned seat (dead/old client)
+                    const orphanIdx = room.seats.findIndex(s => {
+                        if (!s.playerId) return false;
+                        const occupant = clients.get(s.playerId);
+                        // Seat is orphaned if occupant doesn't exist or has a dead ws
+                        return !occupant || (occupant.ws as WebSocket).readyState !== 1; // 1 = OPEN
+                    });
+                    if (orphanIdx !== -1) {
+                        // Take over orphaned seat
+                        const oldId = room.seats[orphanIdx]?.playerId;
+                        if (oldId) clients.delete(oldId);
+                        room.seats[orphanIdx] = {
+                            seat: orphanIdx,
+                            playerId: client.playerId,
+                            player: {
+                                id: client.playerId,
+                                username: `player_${client.playerId.slice(0, 8)}`,
+                                displayName: `Player ${client.playerId.slice(0, 8)}`,
+                                isGuest: true,
+                            },
+                            bot: false,
+                            status: "ACTIVE",
+                            ready: true,
+                            score: 0,
+                        };
+                        seatIdx = orphanIdx;
+                    } else {
+                        // Try empty seat
+                        const emptySeat = room.seats.findIndex(s => s.playerId === null);
+                        if (emptySeat !== -1) {
+                            room.seats[emptySeat] = {
+                                seat: emptySeat,
+                                playerId: client.playerId,
+                                player: {
+                                    id: client.playerId,
+                                    username: `player_${client.playerId.slice(0, 8)}`,
+                                    displayName: `Player ${client.playerId.slice(0, 8)}`,
+                                    isGuest: true,
+                                },
+                                bot: false,
+                                status: "ACTIVE",
+                                ready: true,
+                                score: 0,
+                            };
+                            seatIdx = emptySeat;
+                        }
+                    }
                 }
 
-                // Re-associate client with room
-                client.roomId = roomId;
-                client.seat = seatIdx;
+                const claimedSeat = seatIdx !== -1 ? room.seats[seatIdx] : undefined;
+                if (claimedSeat) {
+                    client.roomId = roomId;
+                    client.seat = seatIdx;
+                    claimedSeat.ready = true;
+                    rooms.set(roomId, room);
+                    console.log(`[ws] RESUME: player ${client.playerId.slice(0, 8)} seated at ${seatIdx} in room ${roomId.slice(0, 8)}`);
 
-                // Send game state snapshot
-                const gs = gameStates.get(roomId);
-                if (gs) {
-                    sendEnvelope(ws, createEnvelope("GAME_STATE", {
-                        kind: "snapshot",
-                        stateVersion: gs.stateVersion,
-                        state: gs.state,
-                    }));
+                    broadcastToRoom(
+                        roomId,
+                        createEnvelope("PLAYER_JOINED", {
+                            seat: seatIdx,
+                            player: claimedSeat.player,
+                        }),
+                        client.playerId,
+                    );
+                } else {
+                    console.log(`[ws] RESUME: player ${client.playerId.slice(0, 8)} could not find seat in room ${roomId.slice(0, 8)}`);
+                    client.roomId = roomId;
+                    client.seat = undefined;
                 }
+
+                // Send game state or room info
+                handleRequestState(playerId).catch((err) =>
+                    console.error("[dispatcher] RESUME handleRequestState failed:", err),
+                );
                 break;
             }
             default:
@@ -140,6 +229,7 @@ export function handleConnection(ws: WebSocket): void {
     ws.on("message", (data: WebSocket.Data) => {
         try {
             const envelope = parseEnvelope(JSON.parse(data.toString()));
+            console.log(`[ws] recv: ${envelope.type}`);
 
             if (envelope.type === "AUTH") {
                 handleAuth(ws, envelope.payload as { token: string });
@@ -177,11 +267,54 @@ export function handleConnection(ws: WebSocket): void {
         const playerId = [...clients.entries()].find(
             ([, c]) => c.ws === ws,
         )?.[0];
-        if (playerId) {
-            handleLeaveRoom(playerId);
-            clients.delete(playerId);
-            console.log(`Player disconnected: ${playerId}`);
+        if (!playerId) return;
+
+        const client = clients.get(playerId);
+        if (!client) return;
+
+        // If player is in an active game, start grace period instead of immediate leave
+        if (client.roomId && client.seat !== undefined) {
+            const room = rooms.get(client.roomId);
+            if (room && room.status === "IN_PROGRESS") {
+                // Mark seat as disconnected
+                const seat = room.seats[client.seat];
+                if (seat) {
+                    seat.status = "DISCONNECTED";
+                    rooms.set(room.id, room);
+                }
+
+                broadcastToRoom(
+                    client.roomId,
+                    createEnvelope("PLAYER_DISCONNECTED", {
+                        seat: client.seat,
+                    }),
+                );
+
+                // Start grace period timer
+                const timer = setTimeout(() => {
+                    disconnectTimers.delete(playerId);
+                    // Check if player reconnected (ws changed)
+                    const currentClient = clients.get(playerId);
+                    if (currentClient && currentClient.ws !== ws) {
+                        // Player reconnected with new socket — don't remove
+                        return;
+                    }
+                    // Player didn't reconnect — remove from room
+                    handleLeaveRoom(playerId);
+                    clients.delete(playerId);
+                    console.log(`Player ${playerId} removed after disconnect grace period`);
+                }, DISCONNECT_GRACE_MS);
+
+                disconnectTimers.set(playerId, timer);
+                console.log(`Player ${playerId} disconnected, grace period started (${DISCONNECT_GRACE_MS}ms)`);
+                return;
+            }
         }
+
+        // Not in a game — immediate cleanup
+        handleLeaveRoom(playerId);
+        clients.delete(playerId);
+        console.log(`Player disconnected: ${playerId}`);
     });
 
     ws.on("error", (error: Error) => {

@@ -48,7 +48,7 @@ Every message is a JSON object:
 | `AUTH`                 | Authenticate with session/guest token.                           |
 | `RESUME`               | Reconnect to a room: `{ roomId, lastStateVersion, lastSeq }`.    |
 | `CREATE_ROOM`          | `{ game, maxPlayers, private, settings: { media } }`.            |
-| `JOIN_ROOM`            | `{ inviteCode, media: { voice, video } }`.                       |
+| `JOIN_ROOM`            | `{ roomId, media: { voice, video } }`.                          |
 | `LEAVE_ROOM`           | Leave room (before game start = unseat; forfeit if in progress). |
 | `PLAYER_READY`         | Mark ready.                                                      |
 | `PLAYER_UNREADY`       | Unmark ready.                                                    |
@@ -68,7 +68,7 @@ Every message is a JSON object:
 | --------------------- | --------------------------------------------------------------------- |
 | `AUTH_OK`             | `{ playerId, token }`.                                                |
 | `AUTH_ERROR`          | `{ code }`.                                                           |
-| `ROOM_CREATED`        | `{ roomId, inviteCode, room }` full room snapshot.                    |
+| `ROOM_CREATED`        | `{ roomId, room }` full room snapshot.                               |
 | `ROOM_UPDATE`         | Full room snapshot: seats, players, settings, status. The room truth. |
 | `ROOM_STATE_CHANGE`   | `{ from, to }` lifecycle transition.                                  |
 | `PLAYER_JOINED`       | `{ seat, player }`.                                                   |
@@ -79,7 +79,7 @@ Every message is a JSON object:
 | `GAME_START`          | `{ seatOrder, config, initialState }`.                                |
 | `GAME_STATE`          | `{ kind: "snapshot"                                                   | "delta", stateVersion, state }`. |
 | `GAME_END`            | `{ result, winner, reason, stats }`.                                  |
-| `MATCH_FOUND`         | `{ roomId, inviteCode }` → client joins with auto-ready.              |
+| `MATCH_FOUND`         | `{ roomId }` → client joins with auto-ready.                          |
 | `ACK`                 | `{ requestId, stateVersion }` action applied.                         |
 | `ERROR`               | `{ code, message, requestId? }`.                                      |
 | `PONG`                | Heartbeat reply.                                                      |
@@ -243,7 +243,7 @@ Win assignment:
 
 ```
 QUEUE_JOIN { game, botFill, fillAfterMs }
-  → MATCH_FOUND { roomId, inviteCode }
+  → MATCH_FOUND { roomId }
   → client JOIN_ROOM (auto-ready)
   → all seats full + ready → STARTING
   → unfilled seats get bots after fillAfterMs

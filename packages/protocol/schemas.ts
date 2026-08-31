@@ -11,6 +11,8 @@ import {
     type ServerMessageType,
 } from "./types";
 
+/** Short room code (5 chars) validation schema */
+const roomIdSchema = z.string().min(5).max(5);
 /** UUID string validation schema */
 const uuidSchema = z.string().uuid();
 /** ISO 8601 timestamp with timezone offset */
@@ -50,7 +52,7 @@ export const RoomSettingsSchema = z.object({
  */
 export const PlayerInfoSchema = z.object({
     /** Player UUID */
-    id: uuidSchema,
+    id: roomIdSchema,
     /** Username (1-32 chars) */
     username: z.string().min(1).max(32),
     /** Display name (1-64 chars) */
@@ -87,8 +89,8 @@ export const SeatInfoSchema = z.object({
  * Complete room state including all seats and metadata.
  */
 export const RoomSnapshotSchema = z.object({
-    /** Room UUID */
-    id: uuidSchema,
+    /** Room code (5 chars) */
+    id: roomIdSchema,
     /** Room name (1-128 chars) */
     name: z.string().min(1).max(128),
     /** Game type enum */
@@ -269,8 +271,8 @@ export const EnvelopeSchema = z.object({
     type: z.string(),
     /** Optional request UUID */
     requestId: uuidSchema.optional(),
-    /** Optional room UUID */
-    roomId: uuidSchema.optional(),
+    /** Optional room code */
+    roomId: roomIdSchema.optional(),
     /** Payload (validated separately by type) */
     payload: z.unknown(),
 });
@@ -299,7 +301,7 @@ export const ClientPayloadSchemas: Record<ClientMessageType, z.ZodTypeAny> = {
     AUTH: z.object({ token: z.string().min(1) }),
     /** Resume session in room */
     RESUME: z.object({
-        roomId: uuidSchema,
+        roomId: roomIdSchema,
         lastStateVersion: nonNegativeIntSchema,
         lastSeq: nonNegativeIntSchema.optional(),
     }),
@@ -317,9 +319,9 @@ export const ClientPayloadSchemas: Record<ClientMessageType, z.ZodTypeAny> = {
         private: z.boolean(),
         settings: RoomSettingsSchema,
     }),
-    /** Join room by invite code */
+    /** Join room by ID */
     JOIN_ROOM: z.object({
-        inviteCode: z.string().min(1),
+        roomId: roomIdSchema,
         media: MediaSettingsSchema,
     }),
     /** Leave current room */
@@ -335,6 +337,10 @@ export const ClientPayloadSchemas: Record<ClientMessageType, z.ZodTypeAny> = {
         seat: nonNegativeIntSchema,
         action: BaseActionSchema,
     }),
+    /** Request current game state snapshot */
+    REQUEST_STATE: z.object({}),
+    /** List public waiting rooms */
+    LIST_ROOMS: z.object({}),
     /** Update room settings (host) */
     ROOM_SETTINGS_UPDATE: z.object({
         settings: RoomSettingsSchema.partial(),
@@ -387,10 +393,9 @@ export const ServerPayloadSchemas: Record<ServerMessageType, z.ZodTypeAny> = {
     AUTH_ERROR: z.object({
         code: z.nativeEnum(ErrorCode),
     }),
-    /** Room created with invite code and snapshot */
+    /** Room created with snapshot */
     ROOM_CREATED: z.object({
-        roomId: uuidSchema,
-        inviteCode: z.string(),
+        roomId: roomIdSchema,
         room: RoomSnapshotSchema,
     }),
     /** Room state updated */
@@ -458,8 +463,7 @@ export const ServerPayloadSchemas: Record<ServerMessageType, z.ZodTypeAny> = {
     }),
     /** Matchmaking found match */
     MATCH_FOUND: z.object({
-        roomId: uuidSchema,
-        inviteCode: z.string(),
+        roomId: roomIdSchema,
     }),
     /** Request acknowledgment */
     ACK: z.object({
@@ -471,6 +475,64 @@ export const ServerPayloadSchemas: Record<ServerMessageType, z.ZodTypeAny> = {
         code: z.nativeEnum(ErrorCode),
         message: z.string(),
         requestId: uuidSchema.optional(),
+    }),
+    /** Room info for pre-game state */
+    ROOM_INFO: z.object({
+        gameType: z.string(),
+        status: z.string(),
+        name: z.string(),
+        hostId: z.string(),
+        seats: z.array(z.object({
+            seat: z.number(),
+            playerId: z.string().nullable().optional(),
+            player: z.object({
+                id: z.string(),
+                username: z.string(),
+                displayName: z.string(),
+                avatar: z.string().optional(),
+                isGuest: z.boolean(),
+            }).nullable().optional(),
+            bot: z.boolean(),
+            status: z.string(),
+            ready: z.boolean(),
+            score: z.number(),
+        })),
+        maxPlayers: z.number(),
+    }),
+    /** List of public rooms */
+    ROOM_LIST: z.object({
+        rooms: z.array(z.object({
+            id: z.string(),
+            name: z.string(),
+            gameType: z.string(),
+            maxPlayers: z.number(),
+            status: z.string(),
+            hostId: z.string(),
+            seats: z.array(z.object({
+                seat: z.number(),
+                playerId: z.string().nullable().optional(),
+                player: z.object({
+                    id: z.string(),
+                    username: z.string(),
+                    displayName: z.string(),
+                    avatar: z.string().optional(),
+                    isGuest: z.boolean(),
+                }).nullable().optional(),
+                bot: z.boolean(),
+                status: z.string(),
+                ready: z.boolean(),
+                score: z.number(),
+            })),
+            settings: z.object({
+                media: z.object({
+                    voice: z.boolean(),
+                    video: z.boolean(),
+                }),
+                maxPlayers: z.number(),
+                private: z.boolean(),
+            }),
+            createdAt: z.string(),
+        })),
     }),
     /** Heartbeat pong */
     PONG: z.object({}),

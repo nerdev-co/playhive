@@ -49,6 +49,10 @@ export type ClientMessageType =
     | "START_GAME"
     /** Submit a game action during play */
     | "GAME_ACTION"
+    /** Request current game state snapshot */
+    | "REQUEST_STATE"
+    /** List public waiting rooms */
+    | "LIST_ROOMS"
     /** Update room settings (host only) */
     | "ROOM_SETTINGS_UPDATE"
     /** Join matchmaking queue */
@@ -102,6 +106,10 @@ export type ServerMessageType =
     | "ACK"
     /** Generic error response */
     | "ERROR"
+    /** Room info (gameType, status) for pre-game state */
+    | "ROOM_INFO"
+    /** List of public rooms */
+    | "ROOM_LIST"
     /** Heartbeat pong */
     | "PONG";
 
@@ -190,8 +198,8 @@ export interface CreateRoomPayload {
 
 /** Payload for JOIN_ROOM message */
 export interface JoinRoomPayload {
-    /** Invite code for the room */
-    inviteCode: string;
+    /** Room code to join */
+    roomId: string;
     /** Media preferences for this session */
     media: MediaSettings;
 }
@@ -207,6 +215,22 @@ export interface PlayerUnreadyPayload {}
 
 /** Payload for START_GAME message (empty) */
 export interface StartGamePayload {}
+
+/** Payload for ROOM_INFO message (enriched for waiting room UI) */
+export interface RoomInfoPayload {
+    /** Game type for this room */
+    gameType: GameType;
+    /** Current room status */
+    status: RoomStatus;
+    /** Room display name */
+    name: string;
+    /** Room host player ID */
+    hostId: string;
+    /** Seat assignments and player info */
+    seats: SeatInfo[];
+    /** Maximum players allowed */
+    maxPlayers: number;
+}
 
 /** Payload for GAME_ACTION message */
 export interface GameActionPayload {
@@ -278,8 +302,6 @@ export interface PingPayload {}
 export interface RoomCreatedPayload {
     /** Unique room identifier */
     roomId: string;
-    /** Human-readable invite code */
-    inviteCode: string;
     /** Full room snapshot */
     room: RoomSnapshot;
 }
@@ -370,8 +392,6 @@ export interface GameEndPayload {
 export interface MatchFoundPayload {
     /** Created room ID */
     roomId: string;
-    /** Invite code for the room */
-    inviteCode: string;
 }
 
 /** Payload for ACK message */
@@ -480,7 +500,7 @@ export interface MediaSettings {
  * @category Room State
  */
 export interface RoomSnapshot {
-    /** Unique room identifier (UUID) */
+    /** Unique room identifier (5-char code) */
     id: string;
     /** Room display name */
     name: string;

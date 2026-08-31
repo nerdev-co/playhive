@@ -6,17 +6,15 @@ import {
     type SeatInfo,
     type PlayerInfo,
     ErrorCode,
-} from "protocol";
-import { createEnvelope } from "protocol";
+} from "@playhive/protocol";
 
+import { createEnvelope } from "@playhive/protocol";
 import {
     sendEnvelope,
     broadcastToRoom,
     clients,
     rooms,
-    generateId,
-    generateInviteCode,
-    generateInviteCodeFromId,
+    generateShortId,
 } from "../utils";
 
 export function handleCreateRoom(
@@ -33,8 +31,7 @@ export function handleCreateRoom(
         };
     },
 ): void {
-    const roomId = generateId();
-    const inviteCode = generateInviteCode();
+    const roomId = generateShortId();
 
     const room: RoomSnapshot = {
         id: roomId,
@@ -44,22 +41,32 @@ export function handleCreateRoom(
         status: "WAITING",
         settings: payload.settings,
         hostId: playerId,
-        seats: [
-            {
-                seat: 0,
-                playerId,
-                player: {
-                    id: playerId,
-                    username: `player_${playerId.slice(0, 8)}`,
-                    displayName: `Player ${playerId.slice(0, 8)}`,
-                    isGuest: true,
-                },
-                bot: false,
-                status: "ACTIVE",
-                ready: false,
-                score: 0,
-            },
-        ],
+        seats: Array.from({ length: payload.maxPlayers }, (_, i) =>
+            i === 0
+                ? {
+                      seat: 0,
+                      playerId,
+                      player: {
+                          id: playerId,
+                          username: `player_${playerId.slice(0, 8)}`,
+                          displayName: `Player ${playerId.slice(0, 8)}`,
+                          isGuest: true,
+                      },
+                      bot: false,
+                      status: "ACTIVE",
+                      ready: true,
+                      score: 0,
+                  }
+                : {
+                      seat: i,
+                      playerId: null,
+                      player: null,
+                      bot: false,
+                      status: "ACTIVE",
+                      ready: false,
+                      score: 0,
+                  },
+        ),
         createdAt: new Date().toISOString(),
     };
 
@@ -73,20 +80,27 @@ export function handleCreateRoom(
 
     sendEnvelope(
         ws,
-        createEnvelope("ROOM_CREATED", { roomId, inviteCode, room }),
+        createEnvelope("ROOM_CREATED", {
+            roomId: room.id,
+            room,
+        }),
     );
-    console.log(`Room created: ${roomId} (${inviteCode}) by ${playerId}`);
+
+    for (const [, c] of clients) {
+        if (c.ws !== ws && c.ws.readyState === 1) {
+            sendEnvelope(c.ws, createEnvelope("ROOM_UPDATE", { room }));
+        }
+    }
+
+    console.log(`Room created: ${roomId} by ${playerId}`);
 }
 
 export function handleJoinRoom(
     ws: WebSocket,
     playerId: string,
-    payload: { inviteCode: string; media: { voice: boolean; video: boolean } },
+    payload: { roomId: string; media: { voice: boolean; video: boolean } },
 ): void {
-    const room = [...rooms.values()].find((r) => {
-        const code = generateInviteCodeFromId(r.id);
-        return code === payload.inviteCode;
-    });
+    const room = rooms.get(payload.roomId);
 
     if (!room) {
         sendEnvelope(
@@ -110,17 +124,6 @@ export function handleJoinRoom(
         return;
     }
 
-    if (room.seats.length >= room.maxPlayers) {
-        sendEnvelope(
-            ws,
-            createEnvelope("ERROR", {
-                code: ErrorCode.ROOM_FULL,
-                message: "Room is full",
-            }),
-        );
-        return;
-    }
-
     const seatIndex = room.seats.findIndex(
         (s: SeatInfo) => s.playerId === null,
     );
@@ -129,7 +132,7 @@ export function handleJoinRoom(
             ws,
             createEnvelope("ERROR", {
                 code: ErrorCode.ROOM_FULL,
-                message: "No available seats",
+                message: "Room is full",
             }),
         );
         return;
@@ -143,13 +146,12 @@ export function handleJoinRoom(
     };
 
     room.seats[seatIndex] = {
-        ...room.seats[seatIndex],
+        seat: seatIndex,
         playerId,
         player,
         bot: false,
         status: "ACTIVE",
-        ready: false,
-        seat: seatIndex,
+        ready: true,
         score: 0,
     };
 
@@ -165,7 +167,6 @@ export function handleJoinRoom(
         ws,
         createEnvelope("ROOM_CREATED", {
             roomId: room.id,
-            inviteCode: generateInviteCodeFromId(room.id),
             room,
         }),
     );
@@ -175,6 +176,13 @@ export function handleJoinRoom(
         createEnvelope("PLAYER_JOINED", { seat: seatIndex, player }),
         playerId,
     );
+
+    for (const [, c] of clients) {
+        if (c.ws.readyState === 1) {
+            sendEnvelope(c.ws, createEnvelope("ROOM_UPDATE", { room }));
+        }
+    }
+
     console.log(
         `Player ${playerId} joined room ${room.id} at seat ${seatIndex}`,
     );

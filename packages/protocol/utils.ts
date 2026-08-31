@@ -25,6 +25,8 @@ const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = [
     "PLAYER_UNREADY",
     "START_GAME",
     "GAME_ACTION",
+    "REQUEST_STATE",
+    "LIST_ROOMS",
     "ROOM_SETTINGS_UPDATE",
     "QUEUE_JOIN",
     "QUEUE_LEAVE",
@@ -52,6 +54,8 @@ const SERVER_MESSAGE_TYPES: readonly ServerMessageType[] = [
     "MATCH_FOUND",
     "ACK",
     "ERROR",
+    "ROOM_INFO",
+    "ROOM_LIST",
     "PONG",
 ] as const;
 

@@ -4,15 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { getUser, guestLogin, isLoggedIn, getToken } from "@/lib/auth";
-import type { RoomSnapshot, PlayerInfo } from "@repo/protocol";
+import type { RoomSnapshot, PlayerInfo } from "@playhive/protocol";
 
 export default function LobbyPage() {
   const router = useRouter();
-  const { state, send, on, authenticate } = useWebSocket();
+  const { state, send, on, authenticate, authed } = useWebSocket();
   const [rooms, setRooms] = useState<RoomSnapshot[]>([]);
   const [player, setPlayer] = useState<PlayerInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
@@ -31,8 +30,21 @@ export default function LobbyPage() {
       .catch(() => setAuthReady(true));
   }, [authenticate]);
 
+  // Request room list once authenticated
   useEffect(() => {
-    const unsub1 = on("ROOM_UPDATE", (envelope) => {
+    if (!authed) return;
+    send({ v: 1, type: "LIST_ROOMS", payload: {} });
+  }, [authed, send]);
+
+  useEffect(() => {
+    const unsub1 = on("ROOM_LIST", (envelope) => {
+      const payload = (envelope as { payload: { rooms: RoomSnapshot[] } }).payload;
+      if (payload?.rooms) {
+        setRooms(payload.rooms);
+      }
+    });
+
+    const unsub2 = on("ROOM_UPDATE", (envelope) => {
       const payload = (envelope as { payload: { room: RoomSnapshot } }).payload;
       if (payload?.room) {
         setRooms((prev) => {
@@ -47,15 +59,16 @@ export default function LobbyPage() {
       }
     });
 
-    const unsub2 = on("ROOM_CREATED", (envelope) => {
+    const unsub3 = on("ROOM_CREATED", (envelope) => {
       const payload = (envelope as { payload: { roomId: string } }).payload;
       if (payload?.roomId) router.push(`/game/${payload.roomId}`);
     });
 
-    return () => { unsub1(); unsub2(); };
+    return () => { unsub1(); unsub2(); unsub3(); };
   }, [on, router]);
 
   const createRoom = useCallback((game: string, maxPlayers: number, isPrivate: boolean) => {
+    localStorage.setItem("playhive:pendingGameType", game);
     send({
       v: 1,
       type: "CREATE_ROOM",
@@ -64,7 +77,8 @@ export default function LobbyPage() {
     setShowCreate(false);
   }, [send]);
 
-  const joinRoom = useCallback((roomId: string) => {
+  const joinRoom = useCallback((roomId: string, gameType: string) => {
+    localStorage.setItem("playhive:pendingGameType", gameType);
     send({
       v: 1,
       type: "JOIN_ROOM",
@@ -72,16 +86,6 @@ export default function LobbyPage() {
     });
     router.push(`/game/${roomId}`);
   }, [send, router]);
-
-  const joinByCode = useCallback(() => {
-    if (!inviteCode.trim()) return;
-    send({
-      v: 1,
-      type: "JOIN_ROOM",
-      payload: { inviteCode: inviteCode.trim(), media: { voice: false, video: false } },
-    });
-    setInviteCode("");
-  }, [inviteCode, send]);
 
   if (!authReady) {
     return (
@@ -129,28 +133,6 @@ export default function LobbyPage() {
         </div>
       )}
 
-      {/* Invite code */}
-      <section className="animate-fade-in delay-2 mb-8">
-        <h2 className="mb-2 text-[11px] font-medium uppercase tracking-widest text-neutral-500">
-          Join by invite code
-        </h2>
-        <div className="flex gap-2">
-          <input
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && joinByCode()}
-            placeholder="Paste code"
-            className="flex-1 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition-colors focus:border-neutral-700"
-          />
-          <button
-            onClick={joinByCode}
-            className="rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-xs font-medium text-neutral-300 transition-all duration-150 hover:border-neutral-600 hover:text-white active:scale-[0.98]"
-          >
-            Join
-          </button>
-        </div>
-      </section>
-
       {/* Rooms */}
       <section className="animate-fade-in delay-3">
         <h2 className="mb-3 text-[11px] font-medium uppercase tracking-widest text-neutral-500">
@@ -184,7 +166,7 @@ export default function LobbyPage() {
                     </p>
                   </div>
                   <button
-                    onClick={() => joinRoom(room.id)}
+                    onClick={() => joinRoom(room.id, room.gameType)}
                     disabled={isFull}
                     className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-[11px] font-medium text-neutral-300 transition-all duration-150 hover:border-neutral-600 hover:text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
                   >
