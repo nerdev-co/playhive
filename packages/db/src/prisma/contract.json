@@ -1385,7 +1385,7 @@
     "storageHash": "a4f878e19810bc667ed9ad1148403292e24bb034ac1f87d93901f5ec301c4506"
   },
   "execution": {
-    "executionHash": "aed887ec18097b5a106ee4c2fa3b5a48628f13bc59785f951472296fbb980589",
+    "executionHash": "4569604e8e1663ae54d129d4c007c26bd6f68786dad90d6ad2f80ac59d008860",
     "mutations": {
       "defaults": [
         {
@@ -1397,17 +1397,6 @@
             "column": "id",
             "namespace": "public",
             "table": "gameParticipant"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "uuidv4",
-            "kind": "generator"
-          },
-          "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "gameRoom"
           }
         },
         {

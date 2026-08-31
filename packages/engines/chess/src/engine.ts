@@ -232,11 +232,26 @@ function isDraw(state: EngineState): boolean {
     return state.halfmoveClock >= 100 || isInsufficientMaterial(state);
 }
 
+export function checkGameOver(state: EngineState): { gameOver: boolean; result?: "white" | "black" | "draw"; resultReason?: string } {
+    if (isInCheck(state) && isCheckmate(state)) {
+        const winner = state.turn === "white" ? "black" : "white";
+        return { gameOver: true, result: winner, resultReason: "checkmate" };
+    }
+    if (isStalemate(state)) {
+        return { gameOver: true, result: "draw", resultReason: "stalemate" };
+    }
+    if (isDraw(state)) {
+        const reason = state.halfmoveClock >= 100 ? "fifty_move_rule" : "insufficient_material";
+        return { gameOver: true, result: "draw", resultReason: reason };
+    }
+    return { gameOver: false };
+}
+
 /**
  * Checks if the position is a draw due to insufficient material.
  * Covers: K vs K, K+B vs K, K+N vs K, K+B vs K+B (same-colored bishops).
  */
-function isInsufficientMaterial(state: EngineState): boolean {
+export function isInsufficientMaterial(state: EngineState): boolean {
     const board = fenToBoard(state.fen);
     const pieces: { type: string; color: "white" | "black"; file: number; rank: number }[] = [];
 

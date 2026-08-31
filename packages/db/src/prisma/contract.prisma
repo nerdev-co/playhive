@@ -16,7 +16,7 @@ model User {
 }
 
 model GameRoom {
-  id          String   @id @default(uuid())
+  id          String   @id
   name        String
   gameType    String
   maxPlayers  Int

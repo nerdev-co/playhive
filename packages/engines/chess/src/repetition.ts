@@ -57,4 +57,22 @@ export class RepetitionTable {
     clear(): void {
         this.counts.clear();
     }
+
+    /**
+     * Serializes the table to a transferable format.
+     */
+    serialize(): [number, number][] {
+        return Array.from(this.counts.entries());
+    }
+
+    /**
+     * Restores a table from serialized data.
+     */
+    static deserialize(data: [number, number][]): RepetitionTable {
+        const table = new RepetitionTable();
+        for (const [hash, count] of data) {
+            table.counts.set(hash, count);
+        }
+        return table;
+    }
 }

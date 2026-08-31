@@ -35,7 +35,7 @@ import type {
 export type StorageHash =
   StorageHashBase<'a4f878e19810bc667ed9ad1148403292e24bb034ac1f87d93901f5ec301c4506'>;
 export type ExecutionHash =
-  ExecutionHashBase<'aed887ec18097b5a106ee4c2fa3b5a48628f13bc59785f951472296fbb980589'>;
+  ExecutionHashBase<'4569604e8e1663ae54d129d4c007c26bd6f68786dad90d6ad2f80ac59d008860'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -1415,14 +1415,6 @@ type ContractBase = Omit<
           readonly ref: {
             readonly namespace: 'public';
             readonly table: 'gameParticipant';
-            readonly column: 'id';
-          };
-          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
-        },
-        {
-          readonly ref: {
-            readonly namespace: 'public';
-            readonly table: 'gameRoom';
             readonly column: 'id';
           };
           readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };

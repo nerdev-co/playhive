@@ -79,6 +79,7 @@ export type ChessEvent =
               | "stalemate"
               | "insufficient_material"
               | "threefold_repetition"
+              | "fivefold_repetition"
               | "fifty_move_rule"
               | "agreement";
           fen: string;
