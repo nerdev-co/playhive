@@ -2,6 +2,11 @@
 
 import type { EngineState as LudoState } from "@playhive/ludo";
 
+/** Extended state that includes server-generated dice value */
+interface LudoBoardState extends LudoState {
+    pendingDistance?: number;
+}
+
 const PLAYER_COLORS: Record<
     string,
     { bg: string; text: string; border: string }
@@ -40,9 +45,12 @@ export function LudoBoard({
     disabled,
     mySeat,
 }: LudoBoardProps) {
-    const currentPlayer = state.players[state.gameInfo[0]] ?? "a";
+    const s = state as LudoBoardState;
+    const currentPlayer = s.players[s.gameInfo[0]] ?? "a";
     const isMyTurn =
-        mySeat !== undefined && state.players[mySeat] === currentPlayer;
+        mySeat !== undefined && s.players[mySeat] === currentPlayer;
+    const hasRolled = s.pendingDistance !== undefined;
+    const canInteract = isMyTurn && !disabled && !s.gameOver;
 
     return (
         <div className="flex flex-col items-center gap-4">
@@ -61,23 +69,65 @@ export function LudoBoard({
                 )}
             </div>
 
+            {/* Dice + Actions */}
+            {isMyTurn && !s.gameOver && (
+                <div className="flex flex-col items-center gap-2">
+                    {/* Dice display */}
+                    {hasRolled && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-neutral-500">Dice:</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-700 bg-neutral-800 text-lg font-bold text-white">
+                                {s.pendingDistance}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Roll Dice button */}
+                    {!hasRolled && (
+                        <button
+                            onClick={() => onAction({ type: "ROLL_DICE" })}
+                            disabled={!canInteract}
+                            className="rounded-lg border border-indigo-600 bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+                        >
+                            Roll Dice
+                        </button>
+                    )}
+
+                    {/* Token selection */}
+                    {hasRolled && mySeat !== undefined && s.players[mySeat] !== undefined && (
+                        <TokenSelector
+                            s={s}
+                            mySeat={mySeat}
+                            onAction={onAction}
+                            canInteract={canInteract}
+                        />
+                    )}
+                </div>
+            )}
+
+            {/* Waiting indicator for opponent's turn */}
+            {!isMyTurn && !s.gameOver && (
+                <div className="text-[10px] text-neutral-600">
+                    Waiting for {PLAYER_LABELS[currentPlayer] ?? currentPlayer}...
+                </div>
+            )}
+
             {/* Board */}
             <div className="relative rounded-xl border border-neutral-800 bg-neutral-900 p-4">
                 <div
                     className="grid grid-cols-15 grid-rows-15 gap-px"
                     style={{ width: 360, height: 360 }}
                 >
-                    {/* Simplified cross-shaped board */}
                     {Array.from({ length: 15 * 15 }, (_, i) => {
                         const row = Math.floor(i / 15);
                         const col = i % 15;
                         const square = getSquareForPosition(row, col);
                         if (square === null) return <div key={i} />;
 
-                        const pieces = state.board[square]?.pieces ?? [];
+                        const pieces = s.board[square]?.pieces ?? [];
                         const pieceKeys = Object.keys(pieces);
                         const squareType =
-                            state.board[square]?.type ?? "normal";
+                            s.board[square]?.type ?? "normal";
 
                         return (
                             <div
@@ -124,13 +174,13 @@ export function LudoBoard({
 
             {/* Players */}
             <div className="flex gap-3">
-                {state.players.map((p, i) => {
+                {s.players.map((p, i) => {
                     const colors = PLAYER_COLORS[p] ?? {
                         bg: "bg-neutral-500",
                         text: "text-white",
                         border: "border-neutral-400",
                     };
-                    const isActive = i === state.gameInfo[0];
+                    const isActive = i === s.gameInfo[0];
                     return (
                         <div
                             key={p}
@@ -150,11 +200,11 @@ export function LudoBoard({
             </div>
 
             {/* Captured */}
-            {Object.entries(state.captured).filter(([, v]) => v > 0).length >
+            {Object.entries(s.captured).filter(([, v]) => v > 0).length >
                 0 && (
                 <div className="text-[10px] text-neutral-500">
                     Captured:{" "}
-                    {Object.entries(state.captured)
+                    {Object.entries(s.captured)
                         .filter(([, v]) => v > 0)
                         .map(([k, v]) => `${PLAYER_LABELS[k] ?? k}: ${v}`)
                         .join(", ")}
@@ -162,10 +212,10 @@ export function LudoBoard({
             )}
 
             {/* Game over */}
-            {state.gameOver && (
+            {s.gameOver && (
                 <div className="rounded-lg border border-amber-800/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-400">
-                    {state.winner
-                        ? `${PLAYER_LABELS[state.winner] ?? state.winner} wins!`
+                    {s.winner
+                        ? `${PLAYER_LABELS[s.winner] ?? s.winner} wins!`
                         : "Game over"}
                 </div>
             )}
@@ -173,9 +223,55 @@ export function LudoBoard({
     );
 }
 
+function TokenSelector({
+    s,
+    mySeat,
+    onAction,
+    canInteract,
+}: {
+    s: LudoBoardState;
+    mySeat: number;
+    onAction: (action: { type: string; token?: number }) => void;
+    canInteract: boolean;
+}) {
+    const playerName = s.players[mySeat];
+    if (!playerName) return null;
+
+    return (
+        <div className="flex flex-col items-center gap-1">
+            <span className="text-[10px] text-neutral-500">
+                Select token to move ({s.pendingDistance} squares):
+            </span>
+            <div className="flex gap-1.5">
+                {[0, 1, 2, 3].map((tokenIdx) => {
+                    const pos = s.pieces[playerName]?.[tokenIdx];
+                    const isHome = pos !== undefined && pos < 4;
+                    const isGoal = pos === 22;
+                    return (
+                        <button
+                            key={tokenIdx}
+                            onClick={() => onAction({ type: "MOVE_TOKEN", token: tokenIdx })}
+                            disabled={!canInteract}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold transition-colors ${
+                                isGoal
+                                    ? "border-amber-500 bg-amber-500/20 text-amber-400"
+                                    : isHome
+                                      ? "border-neutral-600 bg-neutral-700 text-neutral-400"
+                                      : `${PLAYER_COLORS[playerName]?.border ?? "border-neutral-600"} ${PLAYER_COLORS[playerName]?.bg ?? "bg-neutral-700"}/30 ${PLAYER_COLORS[playerName]?.text ?? "text-neutral-300"}`
+                            }`}
+                            title={`Token ${tokenIdx}${isHome ? " (home)" : isGoal ? " (goal)" : ` (pos ${pos})`}`}
+                        >
+                            {tokenIdx}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 /**
  * Maps a (row, col) position on a 15x15 grid to a ludo square index.
- * This is a simplified mapping for the cross-shaped board.
  */
 function getSquareForPosition(row: number, col: number): number | null {
     // Center goal area
