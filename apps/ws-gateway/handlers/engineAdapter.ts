@@ -51,17 +51,3 @@ export interface GameEngineAdapter {
     /** Convert opaque state to a plain object suitable for clients. */
     serializeForClient(state: GameStateData): Record<string, unknown>;
 }
-
-/** Registry of adapters keyed by game type. */
-const adapters = new Map<GameType, GameEngineAdapter>();
-
-export function registerAdapter(
-    gameType: GameType,
-    adapter: GameEngineAdapter,
-): void {
-    adapters.set(gameType, adapter);
-}
-
-export function getAdapter(gameType: GameType): GameEngineAdapter | undefined {
-    return adapters.get(gameType);
-}
