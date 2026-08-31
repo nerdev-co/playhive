@@ -14,7 +14,7 @@
 
 ---
 
-## How Packages Will Be Utilized
+## How Packages are Utilized
 
 This repo is a **Turborepo monorepo** with two workspace roots:
 
@@ -107,23 +107,18 @@ const moves = engine.moves({ square: fromSquare, verbose: true });
 // pass moves to UI layer for highlight rendering
 ```
 
-### 5. Shared Types (Cross-Cutting)
-
-`lib-chess.js` exports types that the protocol layer also uses:
-
-```ts
-export type { Move, FEN, GameState, GameResult };
-```
-
-The protocol package (`packages/protocol/`) can import these so `GAME_ACTION` and `GAME_STATE` schemas stay in sync with what the engine actually produces/consumes — no duplicated type definitions.
-
 ---
 
-## Summary
+# Starting app
 
-| Layer                    | Consumes `@playmesh/chess` | Purpose                                 |
-| ------------------------ | -------------------------- | --------------------------------------- |
-| `packages/engines/chess` | —                          | Defines and exports the engine          |
-| `apps/ws-gateway`        | `workspace:*`              | Authoritative validation, state, bot AI |
-| `apps/web`               | `workspace:*`              | Rendering, move preview, UX validation  |
-| `packages/protocol`      | `workspace:*`              | Types for message schemas               |
+copy over environment variables:
+
+```
+cp .env.example .env
+```
+
+then set the environment variables jwt by creating them:
+
+```sh
+openssl rand -base64 32
+```
