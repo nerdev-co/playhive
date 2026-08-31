@@ -72,22 +72,22 @@ export default function LobbyPage() {
     return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
   }, [on, router]);
 
-  const createRoom = useCallback((game: string, maxPlayers: number, isPrivate: boolean) => {
+  const createRoom = useCallback((game: string, maxPlayers: number, isPrivate: boolean, media: { voice: boolean; video: boolean }) => {
     localStorage.setItem("playhive:pendingGameType", game);
     send({
       v: 1,
       type: "CREATE_ROOM",
-      payload: { game, maxPlayers, private: isPrivate, settings: { media: { voice: false, video: false } } },
+      payload: { game, maxPlayers, private: isPrivate, settings: { media, maxPlayers, private: isPrivate } },
     });
     setShowCreate(false);
   }, [send]);
 
-  const joinRoom = useCallback((roomId: string, gameType: string) => {
+  const joinRoom = useCallback((roomId: string, gameType: string, media: { voice: boolean; video: boolean }) => {
     localStorage.setItem("playhive:pendingGameType", gameType);
     send({
       v: 1,
       type: "JOIN_ROOM",
-      payload: { roomId, media: { voice: false, video: false } },
+      payload: { roomId, media },
     });
   }, [send]);
 
@@ -170,7 +170,7 @@ export default function LobbyPage() {
                     </p>
                   </div>
                   <button
-                    onClick={() => joinRoom(room.id, room.gameType)}
+                    onClick={() => joinRoom(room.id, room.gameType, { voice: false, video: false })}
                     disabled={isFull}
                     className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-[11px] font-medium text-neutral-300 transition-all duration-150 hover:border-neutral-600 hover:text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
                   >
@@ -199,11 +199,13 @@ function CreateRoomDialog({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (game: string, maxPlayers: number, isPrivate: boolean) => void;
+  onCreate: (game: string, maxPlayers: number, isPrivate: boolean, media: { voice: boolean; video: boolean }) => void;
 }) {
   const [game, setGame] = useState("chess");
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [voice, setVoice] = useState(false);
+  const [video, setVideo] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -249,6 +251,27 @@ function CreateRoomDialog({
           <label htmlFor="private" className="text-xs text-neutral-400">Private (invite only)</label>
         </div>
 
+        <div className="mb-5 flex gap-4">
+          <label className="flex items-center gap-2 text-xs text-neutral-400">
+            <input
+              type="checkbox"
+              checked={voice}
+              onChange={(e) => setVoice(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-neutral-700 bg-neutral-800 accent-indigo-500"
+            />
+            Voice
+          </label>
+          <label className="flex items-center gap-2 text-xs text-neutral-400">
+            <input
+              type="checkbox"
+              checked={video}
+              onChange={(e) => setVideo(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-neutral-700 bg-neutral-800 accent-indigo-500"
+            />
+            Video
+          </label>
+        </div>
+
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
@@ -257,7 +280,7 @@ function CreateRoomDialog({
             Cancel
           </button>
           <button
-            onClick={() => onCreate(game, maxPlayers, isPrivate)}
+            onClick={() => onCreate(game, maxPlayers, isPrivate, { voice, video })}
             className="rounded-lg bg-indigo-500 px-4 py-1.5 text-xs font-medium text-white transition-all duration-150 hover:bg-indigo-400 active:scale-[0.98]"
           >
             Create

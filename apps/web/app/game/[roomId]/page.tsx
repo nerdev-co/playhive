@@ -5,6 +5,7 @@ import { ChessBoard } from "@/components/chess/board";
 import { LudoBoard } from "@/components/ludo/board";
 import { useWebSocket } from "@/lib/ws/hooks";
 import { useTheme } from "@/lib/theme";
+import { useWebRTC } from "@/lib/ws/webrtc";
 import { initGame, applyAction, legalActions, canClaimThreefold, isInCheck } from "@playhive/chess";
 import { PIECE_SYMBOLS } from "@playhive/chess";
 import type { EngineAction, EngineState } from "@playhive/chess";
@@ -85,6 +86,16 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
   const [hostId, setHostId] = useState<string | null>(null);
   const [roomStatus, setRoomStatus] = useState<string>("WAITING");
   const [maxPlayers, setMaxPlayers] = useState(4);
+
+  // WebRTC — find opponent from room seats
+  const targetPlayerId = useMemo(() => {
+    const seat = roomSeats.find((s) => s.seat !== seatRef.current && s.playerId);
+    return seat?.playerId ?? null;
+  }, [roomSeats]);
+  const rtc = useWebRTC({
+    roomId,
+    targetPlayerId: targetPlayerId ?? "",
+  });
 
   // Store roomId for RESUME on reconnect
   useEffect(() => {
@@ -645,6 +656,62 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
               <p className="mt-1 text-[10px] text-neutral-500">
                 Finished: {ludoState.playersWithEnds.join(", ")}
               </p>
+            )}
+          </div>
+        )}
+
+        {/* Media controls */}
+        {targetPlayerId && (
+          <div className="animate-fade-in delay-4 rounded-lg border border-neutral-800 bg-neutral-900/60 p-3">
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-neutral-600">
+              Media
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (rtc.mediaState.audio) {
+                    rtc.toggleAudio();
+                  } else {
+                    rtc.startMedia({ audio: true });
+                  }
+                }}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs transition-all duration-150 active:scale-[0.95] ${
+                  rtc.mediaState.audio
+                    ? "border-emerald-800/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-neutral-800 bg-neutral-800/50 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300"
+                }`}
+                title={rtc.mediaState.audio ? "Mute" : "Unmute"}
+              >
+                {rtc.mediaState.audio ? "🎤" : "🔇"}
+              </button>
+              <button
+                onClick={() => {
+                  if (rtc.mediaState.video) {
+                    rtc.toggleVideo();
+                  } else {
+                    rtc.startMedia({ video: true });
+                  }
+                }}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs transition-all duration-150 active:scale-[0.95] ${
+                  rtc.mediaState.video
+                    ? "border-emerald-800/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-neutral-800 bg-neutral-800/50 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300"
+                }`}
+                title={rtc.mediaState.video ? "Stop Video" : "Start Video"}
+              >
+                {rtc.mediaState.video ? "📹" : "📷"}
+              </button>
+              <button
+                onClick={rtc.stopAll}
+                disabled={!rtc.mediaState.audio && !rtc.mediaState.video}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-900/30 bg-red-500/10 text-xs text-red-400 transition-all duration-150 hover:bg-red-500/20 active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-30"
+                title="Stop All"
+              >
+                ✕
+              </button>
+            </div>
+            {rtc.connected && (
+              <p className="mt-1.5 text-[10px] text-emerald-500">Connected</p>
             )}
           </div>
         )}
