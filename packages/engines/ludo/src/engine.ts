@@ -12,4 +12,7 @@ export {
     createInitialState,
     legalActions,
     chooseBotAction,
+    createSession,
+    processActionWithSession,
+    getLegalActions,
 } from "./engine.impl";

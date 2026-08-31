@@ -98,3 +98,18 @@ export interface EngineResult {
 }
 
 export const LENGTH = 4;
+
+/**
+ * Captures all mutable engine state in a single object.
+ * Used by the session API to enable pure, stateless game processing.
+ */
+export interface LudoSession {
+    board: LudoBoard;
+    pieces: Record<string, number[]>;
+    captured: Record<string, number>;
+    players: string[];
+    playersWithEnds: string[];
+    history: string[];
+    gameInfo: [number, number, number];
+    config: Required<LudoOptions>;
+}

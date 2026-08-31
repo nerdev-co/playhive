@@ -1,7 +1,7 @@
 // @ts-nocheck
 // Internal implementation ported from ludo.js - runtime validated, types relaxed for portability
 
-import type { LudoOptions, LudoPiece, LudoSquare, LudoMove, LudoEvent, EngineState, EngineAction, EngineResult, MoveType } from "./types";
+import type { LudoOptions, LudoPiece, LudoSquare, LudoMove, LudoEvent, EngineState, EngineAction, EngineResult, MoveType, LudoSession } from "./types";
 import { BOARD, CAPTURED, CONFIG, HISTORY, PIECES, PLAYERS, PLAYERS_WITH_ENDS, GAME_INFO, EVENTS, RANDOM_NUMS } from "./store";
 import { codeFromChar, charFromCode, callListener, pieceAt, nextSquareIndex, getHistoryInfo, moveHelper, resetInit, prevSquareIndex } from "./helper";
 
@@ -414,4 +414,69 @@ export function chooseBotAction(state: EngineState, seat: number): EngineAction 
         return { type: "ROLL_DICE" };
     }
     return actions[Math.floor(Math.random() * actions.length)];
+}
+
+// --- Session API: pure, stateless game processing ---
+
+function snapshotGlobals(): LudoSession {
+    return {
+        board: BOARD.map((sq) => ({ ...sq, pieces: { ...sq.pieces } })),
+        pieces: Object.fromEntries(Object.entries(PIECES).map(([k, v]) => [k, [...v]])),
+        captured: { ...CAPTURED },
+        players: [...PLAYERS],
+        playersWithEnds: [...PLAYERS_WITH_ENDS],
+        history: [...HISTORY],
+        gameInfo: [GAME_INFO[0], GAME_INFO[1], GAME_INFO[2]],
+        config: { ...CONFIG },
+    };
+}
+
+function hydrateGlobals(session: LudoSession): void {
+    BOARD.length = 0;
+    BOARD.push(...session.board.map((sq) => ({ ...sq, pieces: { ...sq.pieces } })));
+
+    Object.keys(PIECES).forEach((key) => delete PIECES[key]);
+    Object.entries(session.pieces).forEach(([k, v]) => { PIECES[k] = [...v]; });
+
+    Object.keys(CAPTURED).forEach((key) => delete CAPTURED[key]);
+    Object.entries(session.captured).forEach(([k, v]) => { CAPTURED[k] = v; });
+
+    PLAYERS.length = 0;
+    PLAYERS.push(...session.players);
+
+    PLAYERS_WITH_ENDS.length = 0;
+    PLAYERS_WITH_ENDS.push(...session.playersWithEnds);
+
+    HISTORY.length = 0;
+    HISTORY.push(...session.history);
+
+    GAME_INFO[0] = session.gameInfo[0];
+    GAME_INFO[1] = session.gameInfo[1];
+    GAME_INFO[2] = session.gameInfo[2];
+
+    Object.assign(CONFIG, session.config);
+}
+
+export function createSession(options: LudoOptions = {}): LudoSession {
+    resetInit();
+    const error = initGame(options);
+    if (error) {
+        throw new Error(error);
+    }
+    return snapshotGlobals();
+}
+
+export function processActionWithSession(
+    session: LudoSession,
+    action: EngineAction,
+): { session: LudoSession; result: EngineResult } {
+    hydrateGlobals(session);
+    const result = applyAction(action);
+    const newSession = snapshotGlobals();
+    return { session: newSession, result };
+}
+
+export function getLegalActions(session: LudoSession, seat: number): EngineAction[] {
+    hydrateGlobals(session);
+    return legalActions(snapshotGlobals(), seat);
 }
