@@ -100,6 +100,24 @@ export function handleMessage(
             case "LEAVE_ROOM":
                 handleLeaveRoom(playerId);
                 break;
+            case "MEDIA_OFFER":
+            case "MEDIA_ANSWER":
+            case "MEDIA_ICE": {
+                const { to } = envelope.payload as { to: string };
+                const target = clients.get(to);
+                if (!target) {
+                    sendEnvelope(ws, createEnvelope("ERROR", {
+                        code: ErrorCode.INVALID_ACTION,
+                        message: "Target player not connected",
+                    }));
+                    break;
+                }
+                sendEnvelope(target.ws, createEnvelope(envelope.type, {
+                    from: playerId,
+                    payload: (envelope.payload as { payload: unknown }).payload,
+                }));
+                break;
+            }
             case "PING":
                 handlePing(ws);
                 break;
