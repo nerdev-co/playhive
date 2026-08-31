@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, use, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { ChessBoard } from "@/components/chess/board";
 import { LudoBoard } from "@/components/ludo/board";
 import { useWebSocket } from "@/lib/ws/hooks";
@@ -54,6 +55,7 @@ function CapturedRow({ pieces, lead }: { pieces: string[]; lead?: number }) {
 }
 
 export default function GamePage({ params }: { params: Promise<{ roomId: string }> }) {
+  const router = useRouter();
   const { state: wsState, send, on } = useWebSocket();
   const { setTheme } = useTheme();
   const resolvedParams = use(params);
@@ -256,6 +258,22 @@ export default function GamePage({ params }: { params: Promise<{ roomId: string 
     });
     return unsub;
   }, [on, gameType, refreshChessLegalMoves]);
+
+  // Handle GAME_END — show result then redirect to lobby
+  useEffect(() => {
+    const unsub = on("GAME_END", (data: unknown) => {
+      const msg = data as { payload?: { winner?: string; reason?: string; result?: { winner?: string; reason?: string } } };
+      const result = msg?.payload?.result ?? msg?.payload;
+      const winner = result?.winner;
+      const reason = result?.reason ?? msg?.payload?.reason;
+
+      // Show result briefly, then redirect
+      setTimeout(() => {
+        router.push("/lobby");
+      }, 3000);
+    });
+    return unsub;
+  }, [on, router]);
 
   // Request state from server on mount and when WS connects
   useEffect(() => {

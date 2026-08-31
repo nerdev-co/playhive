@@ -24,6 +24,18 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   },
 ];
 
+function isValidSdp(sdp: unknown): sdp is RTCSessionDescriptionInit {
+  return (
+    typeof sdp === "object" &&
+    sdp !== null &&
+    "type" in sdp &&
+    "sdp" in sdp &&
+    typeof (sdp as RTCSessionDescriptionInit).type === "string" &&
+    typeof (sdp as RTCSessionDescriptionInit).sdp === "string" &&
+    (sdp as RTCSessionDescriptionInit).sdp!.length > 0
+  );
+}
+
 export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SERVERS }: UseWebRTCOptions) {
   const { send, on } = useWebSocket();
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -155,45 +167,61 @@ export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SER
   useEffect(() => {
     const unsubs = [
       on("MEDIA_OFFER", async (data: unknown) => {
-        const envelope = data as { type: string; payload?: { from?: string; payload?: { sdp?: RTCSessionDescriptionInit } } };
-        const msg = envelope.payload;
-        if (!msg?.from || !msg?.payload?.sdp) return;
-        if (msg.from === targetPlayerId) return;
+        try {
+          const envelope = data as { type: string; payload?: { from?: string; payload?: unknown } };
+          const msg = envelope.payload;
+          if (!msg?.from || !msg?.payload) return;
+          if (msg.from === targetPlayerId) return;
+          if (!isValidSdp(msg.payload)) return;
 
-        const pc = getOrCreatePC();
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
+          const pc = getOrCreatePC();
+          await pc.setRemoteDescription(msg.payload);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
 
-        send({
-          v: 1,
-          type: "MEDIA_ANSWER",
-          payload: {
-            to: msg.from,
-            payload: { sdp: answer },
-          },
-        });
+          send({
+            v: 1,
+            type: "MEDIA_ANSWER",
+            payload: {
+              to: msg.from,
+              payload: { sdp: answer },
+            },
+          });
+        } catch (err) {
+          console.warn("[webrtc] MEDIA_OFFER handling failed:", err);
+        }
       }),
 
       on("MEDIA_ANSWER", async (data: unknown) => {
-        const envelope = data as { type: string; payload?: { from?: string; payload?: { sdp?: RTCSessionDescriptionInit } } };
-        const msg = envelope.payload;
-        if (!msg?.payload?.sdp) return;
-        if (msg.from === targetPlayerId) return;
-        const pc = pcRef.current;
-        if (pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
+        try {
+          const envelope = data as { type: string; payload?: { from?: string; payload?: unknown } };
+          const msg = envelope.payload;
+          if (!msg?.payload) return;
+          if (msg.from === targetPlayerId) return;
+          if (!isValidSdp(msg.payload)) return;
+
+          const pc = pcRef.current;
+          if (pc) {
+            await pc.setRemoteDescription(msg.payload);
+          }
+        } catch (err) {
+          console.warn("[webrtc] MEDIA_ANSWER handling failed:", err);
         }
       }),
 
       on("MEDIA_ICE", async (data: unknown) => {
-        const envelope = data as { type: string; payload?: { from?: string; payload?: { candidate?: RTCIceCandidateInit } } };
-        const msg = envelope.payload;
-        if (!msg?.payload?.candidate) return;
-        if (msg.from === targetPlayerId) return;
-        const pc = pcRef.current;
-        if (pc && msg.payload.candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(msg.payload.candidate));
+        try {
+          const envelope = data as { type: string; payload?: { from?: string; payload?: { candidate?: RTCIceCandidateInit } } };
+          const msg = envelope.payload;
+          if (!msg?.payload?.candidate) return;
+          if (msg.from === targetPlayerId) return;
+
+          const pc = pcRef.current;
+          if (pc) {
+            await pc.addIceCandidate(msg.payload.candidate);
+          }
+        } catch (err) {
+          console.warn("[webrtc] MEDIA_ICE handling failed:", err);
         }
       }),
     ];
