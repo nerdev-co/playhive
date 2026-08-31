@@ -163,7 +163,15 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-neutral-800/50 py-10">
         <div className="mx-auto max-w-4xl px-6 text-center text-xs text-neutral-600">
-          PlayHive
+          PlayHive <span className="text-neutral-700">by</span>{" "}
+          <a
+            href="https://nerdev.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-neutral-500 transition-colors hover:text-neutral-300"
+          >
+            nerdev
+          </a>
         </div>
       </footer>
     </main>
