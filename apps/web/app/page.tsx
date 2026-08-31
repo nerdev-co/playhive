@@ -165,7 +165,7 @@ export default function Home() {
         <div className="mx-auto max-w-4xl px-6 text-center text-xs text-neutral-600">
           PlayHive <span className="text-neutral-700">by</span>{" "}
           <a
-            href="https://nerdev.io"
+            href="https://nerdev.in"
             target="_blank"
             rel="noopener noreferrer"
             className="text-neutral-500 transition-colors hover:text-neutral-300"
