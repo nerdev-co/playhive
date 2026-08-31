@@ -5,17 +5,19 @@ import { WsClient } from "./client";
 import type { WsEnvelope, Listener } from "./types";
 import { getToken, isLoggedIn, guestLogin } from "@/lib/auth";
 
-const WsContext = createContext<WsClient | null>(null);
+const WsContext = createContext<{ client: WsClient | null; authed: boolean }>({ client: null, authed: false });
 
 export function WsProvider({ children, url }: { children: React.ReactNode; url?: string }) {
   const clientRef = useRef<WsClient | null>(null);
   const [state, setState] = useState<"connecting" | "open" | "closing" | "closed" | "error">("closed");
+  const [authed, setAuthed] = useState(false);
 
   if (!clientRef.current) {
     clientRef.current = new WsClient({
       url,
       onOpen: () => {
         setState("open");
+        setAuthed(false);
         // Send AUTH with JWT token on connect
         const token = getToken();
         if (token) {
@@ -38,9 +40,18 @@ export function WsProvider({ children, url }: { children: React.ReactNode; url?:
           }, 200);
         }
       },
-      onClose: () => setState("closed"),
+      onClose: () => { setState("closed"); setAuthed(false); },
       onError: () => setState("error"),
       onMessage: () => {},
+    });
+
+    // Capture playerId from AUTH_OK response
+    clientRef.current.on("AUTH_OK", (data: unknown) => {
+      const msg = data as { payload?: { playerId?: string } };
+      if (msg?.payload?.playerId) {
+        localStorage.setItem("playhive:playerId", msg.payload.playerId);
+        setAuthed(true);
+      }
     });
   }
 
@@ -51,11 +62,11 @@ export function WsProvider({ children, url }: { children: React.ReactNode; url?:
     return () => client.disconnect();
   }, []);
 
-  return <WsContext.Provider value={clientRef.current}>{children}</WsContext.Provider>;
+  return <WsContext.Provider value={{ client: clientRef.current, authed }}>{children}</WsContext.Provider>;
 }
 
 export function useWebSocket() {
-  const client = useContext(WsContext);
+  const { client, authed } = useContext(WsContext);
   const [state, setState] = useState<"connecting" | "open" | "closing" | "closed" | "error">("closed");
 
   useEffect(() => {
@@ -86,5 +97,5 @@ export function useWebSocket() {
     [client],
   );
 
-  return { state, send, on, authenticate, client };
+  return { state, send, on, authenticate, client, authed };
 }

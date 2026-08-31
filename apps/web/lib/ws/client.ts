@@ -16,7 +16,7 @@ export class WsClient {
 
   constructor(opts: WsClientOptions = {}) {
     this.opts = {
-      url: opts.url ?? (process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3002/ws"),
+      url: opts.url ?? (process.env.NEXT_PUBLIC_WS_URL ?? `ws://${typeof window !== "undefined" ? window.location.hostname : "localhost"}:3002/ws`),
       protocols: opts.protocols ?? [],
       reconnect: opts.reconnect ?? true,
       reconnectIntervalMs: opts.reconnectIntervalMs ?? 1000,
@@ -57,6 +57,7 @@ export class WsClient {
 
     try {
       this.ws = new WebSocket(this.url, this.opts.protocols);
+      console.log(`[ws] connecting to ${this.url}`);
     } catch (error) {
       this.state = "error";
       this.emit("state", this.state);
@@ -70,6 +71,7 @@ export class WsClient {
       this.state = "open";
       this.retries = 0;
       this.emit("state", this.state);
+      console.log(`[ws] connected to ${this.url}`);
       this.opts.onOpen();
       this.flushQueue();
     };

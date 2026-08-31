@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { fenToBoard, PIECE_SYMBOLS, squareColor } from "@repo/chess";
+import { fenToBoard, PIECE_SYMBOLS, squareColor } from "@playhive/chess";
 
 const SQUARE_LIGHT = "#e8dcc8";
 const SQUARE_DARK = "#8b6d4f";
