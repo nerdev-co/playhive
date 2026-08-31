@@ -5,6 +5,9 @@ import {
     createServerGameState,
     processGameAction,
 } from "./gameEngine";
+import { createLogger } from "../logger";
+
+const log = createLogger("ws-persist");
 
 let dbReady = false;
 
@@ -33,9 +36,10 @@ export async function createMatch(
             config: JSON.stringify(config),
             startedAt: new Date().toISOString(),
         });
+        log.info("Match created", { matchId: match.id, roomId: roomId.slice(0, 8), gameType });
         return match.id;
     } catch (err) {
-        console.error("[persistence] failed to create match:", err);
+        log.error("Failed to create match", { roomId: roomId.slice(0, 8), error: err instanceof Error ? err.message : String(err) });
         return null;
     }
 }
@@ -57,7 +61,7 @@ export async function persistEvent(
             playerId: playerId ?? null,
         });
     } catch (err) {
-        console.error("[persistence] failed to persist event:", err);
+        log.error("Failed to persist event", { matchId: matchId.slice(0, 8), version, seat, error: err instanceof Error ? err.message : String(err) });
     }
 }
 
@@ -84,7 +88,7 @@ export async function loadEvents(
             playerId: r.playerId,
         }));
     } catch (err) {
-        console.error("[persistence] failed to load events:", err);
+        log.error("Failed to load events", { matchId: matchId.slice(0, 8), error: err instanceof Error ? err.message : String(err) });
         return [];
     }
 }
@@ -125,7 +129,7 @@ export async function loadMatchByRoomId(
         if (!match) return null;
         return { id: match.id, game: match.game, status: match.status };
     } catch (err) {
-        console.error("[persistence] failed to load match:", err);
+        log.error("Failed to load match", { roomId: roomId.slice(0, 8), error: err instanceof Error ? err.message : String(err) });
         return null;
     }
 }
@@ -143,7 +147,8 @@ export async function finishMatch(
             finalState: JSON.stringify(finalState),
             finishedAt: new Date().toISOString(),
         });
+        log.info("Match finished", { matchId: matchId.slice(0, 8) });
     } catch (err) {
-        console.error("[persistence] failed to finish match:", err);
+        log.error("Failed to finish match", { matchId: matchId.slice(0, 8), error: err instanceof Error ? err.message : String(err) });
     }
 }

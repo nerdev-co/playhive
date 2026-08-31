@@ -72,6 +72,10 @@ export function sendEnvelope<T>(ws: WebSocket, envelope: Envelope<T>): void {
     }
 }
 
+export function sendError(ws: WebSocket, code: ErrorCode, message: string): void {
+    sendEnvelope(ws, createEnvelope("ERROR", { code, message }));
+}
+
 export function broadcastToRoom(
     roomId: string,
     envelope: Envelope,

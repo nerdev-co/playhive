@@ -2,13 +2,14 @@ import { WebSocket } from "ws";
 
 import { createEnvelope } from "@playhive/protocol";
 import { sendEnvelope, clients, rooms, generateId } from "../utils";
+import { createLogger } from "../logger";
+
+const log = createLogger("ws-auth");
 
 export function handleAuth(ws: WebSocket, payload: { token: string }): void {
     const playerId = generateId();
     const token = `session-${generateId()}`;
 
-    // Check if this WebSocket already has an authenticated client (e.g. from a previous AUTH)
-    // Transfer their room/seat assignment to the new client
     let existingRoomId: string | undefined;
     let existingSeat: number | undefined;
     let existingPlayerId: string | undefined;
@@ -19,7 +20,6 @@ export function handleAuth(ws: WebSocket, payload: { token: string }): void {
         existingSeat = existingClient.seat;
         existingPlayerId = oldPlayerId;
 
-        // Update room seat to use the new playerId
         if (existingRoomId && existingSeat !== undefined) {
             const room = rooms.get(existingRoomId);
             if (room && room.seats[existingSeat]) {
@@ -41,7 +41,6 @@ export function handleAuth(ws: WebSocket, payload: { token: string }): void {
             }
         }
 
-        // Remove old entry
         clients.delete(oldPlayerId);
     }
 
@@ -55,5 +54,5 @@ export function handleAuth(ws: WebSocket, payload: { token: string }): void {
     clients.set(playerId, client);
 
     sendEnvelope(ws, createEnvelope("AUTH_OK", { playerId, token }));
-    console.log(`Player authenticated: ${playerId}${existingPlayerId ? ` (replaced ${existingPlayerId.slice(0, 8)}, room: ${existingRoomId ?? "none"})` : ""}`);
+    log.info("Player authenticated", { playerId: playerId.slice(0, 8), replaced: existingPlayerId?.slice(0, 8), roomId: existingRoomId?.slice(0, 8) });
 }

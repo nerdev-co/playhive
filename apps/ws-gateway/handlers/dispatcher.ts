@@ -7,16 +7,10 @@ import { handleAuth } from "./auth";
 import { handleCreateRoom, handleJoinRoom } from "./rooms";
 import { handlePlayerReady, handleStartGame, handleLeaveRoom } from "./players";
 import { handleGameAction, handleRequestState, handlePing } from "./game";
-import { sendEnvelope, createEnvelope, clients, rooms, gameStates, broadcastToRoom } from "../utils";
+import { sendEnvelope, createEnvelope, clients, rooms, gameStates, broadcastToRoom, sendError, generateId } from "../utils";
+import { createLogger } from "../logger";
 
-function wsLog(level: "info" | "warn" | "error", msg: string, data?: Record<string, unknown>) {
-    const ts = new Date().toISOString();
-    const base = `${ts} [${level.toUpperCase().padEnd(5)}] [ws-gw] ${msg}`;
-    const out = data ? `${base} ${JSON.stringify(data)}` : base;
-    if (level === "error") console.error(out);
-    else if (level === "warn") console.warn(out);
-    else console.log(out);
-}
+const log = createLogger("ws-gw");
 
 /** Grace period (ms) before a disconnected player is removed from a room. */
 const DISCONNECT_GRACE_MS = 30_000;
@@ -32,14 +26,11 @@ export function handleMessage(
         payload: unknown;
     },
 ): void {
+    const requestId = generateId();
+
     if (!isClientMessage(envelope.type)) {
-        sendEnvelope(
-            ws,
-            createEnvelope("ERROR", {
-                code: ErrorCode.BAD_REQUEST,
-                message: "Invalid message type",
-            }),
-        );
+        log.warn("Invalid message type", { requestId, playerId: playerId.slice(0, 8), type: envelope.type });
+        sendError(ws, ErrorCode.BAD_REQUEST, "Invalid message type");
         return;
     }
 
@@ -114,10 +105,8 @@ export function handleMessage(
                 const { to } = envelope.payload as { to: string };
                 const target = clients.get(to);
                 if (!target) {
-                    sendEnvelope(ws, createEnvelope("ERROR", {
-                        code: ErrorCode.INVALID_ACTION,
-                        message: "Target player not connected",
-                    }));
+                    log.warn("Media target not connected", { requestId, playerId: playerId.slice(0, 8), target: to.slice(0, 8) });
+                    sendError(ws, ErrorCode.INVALID_ACTION, "Target player not connected");
                     break;
                 }
                 sendEnvelope(target.ws, createEnvelope(envelope.type, {
@@ -131,7 +120,7 @@ export function handleMessage(
                 break;
             case "REQUEST_STATE": {
                 handleRequestState(playerId).catch((err) =>
-                    console.error("[dispatcher] REQUEST_STATE failed:", err),
+                    log.error("REQUEST_STATE failed", { requestId, playerId: playerId.slice(0, 8), error: err instanceof Error ? err.message : String(err) }),
                 );
                 break;
             }
@@ -139,33 +128,26 @@ export function handleMessage(
                 const { roomId } = envelope.payload as { roomId: string };
                 const client = [...clients.entries()].find(([, c]) => c.ws === ws)?.[1];
                 if (!client) {
-                    console.log(`[ws] RESUME: no client found for ws`);
+                    log.warn("RESUME: no client found for ws", { requestId, playerId: playerId.slice(0, 8) });
                     break;
                 }
 
                 const room = rooms.get(roomId);
                 if (!room) {
-                    console.log(`[ws] RESUME: room ${roomId} not found`);
-                    sendEnvelope(ws, createEnvelope("ERROR", {
-                        code: ErrorCode.ROOM_NOT_FOUND,
-                        message: "Room not found",
-                    }));
+                    log.warn("RESUME: room not found", { requestId, playerId: playerId.slice(0, 8), roomId: roomId.slice(0, 8) });
+                    sendError(ws, ErrorCode.ROOM_NOT_FOUND, "Room not found");
                     break;
                 }
 
-                // Find the player's seat in this room
                 let seatIdx = room.seats.findIndex(s => s.playerId === client.playerId);
 
                 if (seatIdx === -1) {
-                    // Player not in any seat — check for orphaned seat (dead/old client)
                     const orphanIdx = room.seats.findIndex(s => {
                         if (!s.playerId) return false;
                         const occupant = clients.get(s.playerId);
-                        // Seat is orphaned if occupant doesn't exist or has a dead ws
-                        return !occupant || (occupant.ws as WebSocket).readyState !== 1; // 1 = OPEN
+                        return !occupant || (occupant.ws as WebSocket).readyState !== 1;
                     });
                     if (orphanIdx !== -1) {
-                        // Take over orphaned seat
                         const oldId = room.seats[orphanIdx]?.playerId;
                         if (oldId) clients.delete(oldId);
                         room.seats[orphanIdx] = {
@@ -184,7 +166,6 @@ export function handleMessage(
                         };
                         seatIdx = orphanIdx;
                     } else {
-                        // Try empty seat
                         const emptySeat = room.seats.findIndex(s => s.playerId === null);
                         if (emptySeat !== -1) {
                             room.seats[emptySeat] = {
@@ -212,7 +193,7 @@ export function handleMessage(
                     client.seat = seatIdx;
                     claimedSeat.ready = true;
                     rooms.set(roomId, room);
-                    console.log(`[ws] RESUME: player ${client.playerId.slice(0, 8)} seated at ${seatIdx} in room ${roomId.slice(0, 8)}`);
+                    log.info("RESUME: player seated", { requestId, playerId: client.playerId.slice(0, 8), seat: seatIdx, roomId: roomId.slice(0, 8) });
 
                     broadcastToRoom(
                         roomId,
@@ -223,39 +204,34 @@ export function handleMessage(
                         client.playerId,
                     );
                 } else {
-                    console.log(`[ws] RESUME: player ${client.playerId.slice(0, 8)} could not find seat in room ${roomId.slice(0, 8)}`);
+                    log.warn("RESUME: player could not find seat", { requestId, playerId: client.playerId.slice(0, 8), roomId: roomId.slice(0, 8) });
                     client.roomId = roomId;
                     client.seat = undefined;
                 }
 
-                // Send game state or room info
                 handleRequestState(playerId).catch((err) =>
-                    console.error("[dispatcher] RESUME handleRequestState failed:", err),
+                    log.error("RESUME handleRequestState failed", { requestId, playerId: playerId.slice(0, 8), error: err instanceof Error ? err.message : String(err) }),
                 );
                 break;
             }
             default:
-                console.log(`Unhandled message type: ${envelope.type}`);
+                log.warn("Unhandled message type", { requestId, playerId: playerId.slice(0, 8), type: envelope.type });
         }
     } catch (error) {
-        console.error(`Error handling ${envelope.type}:`, error);
-        sendEnvelope(
-            ws,
-            createEnvelope("ERROR", {
-                code: ErrorCode.SERVER_ERROR,
-                message: "Internal server error",
-            }),
-        );
+        log.error("Error handling message", { requestId, playerId: playerId.slice(0, 8), type: envelope.type, error: error instanceof Error ? error.message : String(error) });
+        sendError(ws, ErrorCode.SERVER_ERROR, "Internal server error");
     }
 }
 
 export function handleConnection(ws: WebSocket): void {
-    console.log("New connection");
+    const connId = generateId();
+    log.info("New connection", { connId });
 
     ws.on("message", (data: WebSocket.Data) => {
         try {
-            const envelope = parseEnvelope(JSON.parse(data.toString()));
-            console.log(`[ws] recv: ${envelope.type}`);
+            const parsed = JSON.parse(data.toString());
+            const envelope = parseEnvelope(parsed);
+            log.info("Received message", { connId, type: envelope.type });
 
             if (envelope.type === "AUTH") {
                 handleAuth(ws, envelope.payload as { token: string });
@@ -266,26 +242,15 @@ export function handleConnection(ws: WebSocket): void {
                 ([, c]) => c.ws === ws,
             )?.[0];
             if (!playerId) {
-                sendEnvelope(
-                    ws,
-                    createEnvelope("ERROR", {
-                        code: ErrorCode.NOT_AUTHED,
-                        message: "Not authenticated",
-                    }),
-                );
+                log.warn("Message from unauthenticated client", { connId, type: envelope.type });
+                sendError(ws, ErrorCode.NOT_AUTHED, "Not authenticated");
                 return;
             }
 
             handleMessage(ws, playerId, envelope);
         } catch (error) {
-            console.error("Message parse error:", error);
-            sendEnvelope(
-                ws,
-                createEnvelope("ERROR", {
-                    code: ErrorCode.BAD_REQUEST,
-                    message: "Invalid message format",
-                }),
-            );
+            log.error("Message parse error", { connId, error: error instanceof Error ? error.message : String(error) });
+            sendError(ws, ErrorCode.BAD_REQUEST, "Invalid message format");
         }
     });
 
@@ -293,16 +258,17 @@ export function handleConnection(ws: WebSocket): void {
         const playerId = [...clients.entries()].find(
             ([, c]) => c.ws === ws,
         )?.[0];
-        if (!playerId) return;
+        if (!playerId) {
+            log.info("Connection closed (unauthenticated)", { connId });
+            return;
+        }
 
         const client = clients.get(playerId);
         if (!client) return;
 
-        // If player is in an active game, start grace period instead of immediate leave
         if (client.roomId && client.seat !== undefined) {
             const room = rooms.get(client.roomId);
             if (room && room.status === "IN_PROGRESS") {
-                // Mark seat as disconnected
                 const seat = room.seats[client.seat];
                 if (seat) {
                     seat.status = "DISCONNECTED";
@@ -316,34 +282,29 @@ export function handleConnection(ws: WebSocket): void {
                     }),
                 );
 
-                // Start grace period timer
                 const timer = setTimeout(() => {
                     disconnectTimers.delete(playerId);
-                    // Check if player reconnected (ws changed)
                     const currentClient = clients.get(playerId);
                     if (currentClient && currentClient.ws !== ws) {
-                        // Player reconnected with new socket — don't remove
                         return;
                     }
-                    // Player didn't reconnect — remove from room
                     handleLeaveRoom(playerId);
                     clients.delete(playerId);
-                    console.log(`Player ${playerId} removed after disconnect grace period`);
+                    log.info("Player removed after disconnect grace period", { connId, playerId: playerId.slice(0, 8) });
                 }, DISCONNECT_GRACE_MS);
 
                 disconnectTimers.set(playerId, timer);
-                console.log(`Player ${playerId} disconnected, grace period started (${DISCONNECT_GRACE_MS}ms)`);
+                log.warn("Player disconnected, grace period started", { connId, playerId: playerId.slice(0, 8), roomId: client.roomId?.slice(0, 8), graceMs: DISCONNECT_GRACE_MS });
                 return;
             }
         }
 
-        // Not in a game — immediate cleanup
         handleLeaveRoom(playerId);
         clients.delete(playerId);
-        console.log(`Player disconnected: ${playerId}`);
+        log.info("Player disconnected", { connId, playerId: playerId.slice(0, 8) });
     });
 
     ws.on("error", (error: Error) => {
-        console.error("WebSocket error:", error);
+        log.error("WebSocket error", { connId, error: error.message });
     });
 }
