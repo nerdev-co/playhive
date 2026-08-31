@@ -23,23 +23,10 @@ const positiveIntSchema = z.number().int().positive();
 const nonNegativeIntSchema = z.number().int().nonnegative();
 
 /**
- * Zod schema for MediaSettings validation.
- * Validates voice and video boolean flags.
- */
-export const MediaSettingsSchema = z.object({
-    /** Voice chat enabled */
-    voice: z.boolean(),
-    /** Video chat enabled */
-    video: z.boolean(),
-});
-
-/**
  * Zod schema for RoomSettings validation.
  * Enforces max 8 players.
  */
 export const RoomSettingsSchema = z.object({
-    /** Media configuration */
-    media: MediaSettingsSchema,
     /** Maximum players (1-8) */
     maxPlayers: positiveIntSchema.max(8),
     /** Private room flag */
@@ -133,8 +120,6 @@ export const RoomSnapshotSchema = z.object({
 export const MatchConfigSchema = z.object({
     /** Max players (1-8) */
     maxPlayers: positiveIntSchema.max(8),
-    /** Media settings */
-    media: MediaSettingsSchema,
     /** Private match flag */
     private: z.boolean(),
 });
@@ -322,7 +307,6 @@ export const ClientPayloadSchemas: Record<ClientMessageType, z.ZodTypeAny> = {
     /** Join room by ID */
     JOIN_ROOM: z.object({
         roomId: roomIdSchema,
-        media: MediaSettingsSchema,
     }),
     /** Leave current room */
     LEAVE_ROOM: z.object({}),

@@ -37,7 +37,6 @@ export async function handleCreateRoom(request: Request): Promise<Response> {
         maxPlayers,
         status: "WAITING",
         settings: settings ?? {
-            media: { voice: true, video: false },
             maxPlayers,
             private: isPrivate,
         },

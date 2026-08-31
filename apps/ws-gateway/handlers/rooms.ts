@@ -28,7 +28,6 @@ export function handleCreateRoom(
         maxPlayers?: number;
         private?: boolean;
         settings?: {
-            media: { voice: boolean; video: boolean };
             maxPlayers: number;
             private: boolean;
         };
@@ -37,7 +36,6 @@ export function handleCreateRoom(
     const roomId = generateShortId();
     const gameType = (payload.game ?? payload.gameType) as GameType;
     const settings = payload.settings ?? {
-        media: { voice: false, video: false },
         maxPlayers: payload.maxPlayers ?? 2,
         private: payload.private ?? false,
     };
@@ -107,7 +105,7 @@ export function handleCreateRoom(
 export function handleJoinRoom(
     ws: WebSocket,
     playerId: string,
-    payload: { roomId: string; media: { voice: boolean; video: boolean } },
+    payload: { roomId: string },
 ): void {
     const room = rooms.get(payload.roomId);
 

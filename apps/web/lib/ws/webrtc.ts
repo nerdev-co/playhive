@@ -17,6 +17,11 @@ interface UseWebRTCOptions {
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  {
+    urls: ["turn:localhost:3478?transport=udp", "turn:localhost:3478?transport=tcp"],
+    username: "turnuser",
+    credential: "turnpass",
+  },
 ];
 
 export function useWebRTC({ roomId, targetPlayerId, iceServers = DEFAULT_ICE_SERVERS }: UseWebRTCOptions) {

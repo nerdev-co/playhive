@@ -202,8 +202,6 @@ export interface CreateRoomPayload {
 export interface JoinRoomPayload {
     /** Room code to join */
     roomId: string;
-    /** Media preferences for this session */
-    media: MediaSettings;
 }
 
 /** Payload for LEAVE_ROOM message (empty) */
@@ -480,20 +478,10 @@ export type GameEndReason =
 
 /** Room configuration settings */
 export interface RoomSettings {
-    /** Media settings for the room */
-    media: MediaSettings;
     /** Maximum players allowed */
     maxPlayers: number;
     /** Whether room is private */
     private: boolean;
-}
-
-/** Media capabilities/settings */
-export interface MediaSettings {
-    /** Voice chat enabled */
-    voice: boolean;
-    /** Video chat enabled */
-    video: boolean;
 }
 
 /**
@@ -562,8 +550,6 @@ export interface PlayerInfo {
 export interface MatchConfig {
     /** Maximum players in match */
     maxPlayers: number;
-    /** Media settings for match */
-    media: MediaSettings;
     /** Whether match is private */
     private: boolean;
 }

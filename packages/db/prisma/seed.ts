@@ -65,7 +65,6 @@ async function main() {
             maxPlayers: 4,
             status: "WAITING" satisfies RoomStatus,
             settings: {
-                media: { voice: true, video: false },
                 maxPlayers: 4,
                 private: true,
             },
@@ -103,7 +102,7 @@ async function main() {
                 { seat: 0, playerId: user1.id, bot: false, result: null },
                 { seat: 1, playerId: user2.id, bot: false, result: null },
             ],
-            config: { maxPlayers: 4, media: { voice: true, video: false } },
+            config: { maxPlayers: 4 },
             startedAt: new Date().toISOString(),
         });
     }

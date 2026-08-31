@@ -28,7 +28,6 @@ export interface SeatInfo {
 
 export interface MatchConfig {
   maxPlayers: number;
-  media: { voice: boolean; video: boolean };
   private: boolean;
 }
 

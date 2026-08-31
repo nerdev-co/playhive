@@ -58,7 +58,6 @@ export function handleMessage(
                     playerId,
                     envelope.payload as {
                         roomId: string;
-                        media: { voice: boolean; video: boolean };
                     },
                 );
                 break;

@@ -30,7 +30,6 @@ export const createRoomSchema = z.object({
     private: z.boolean().default(false),
     settings: z
         .object({
-            media: z.object({ voice: z.boolean(), video: z.boolean() }),
             maxPlayers: z.number().int().min(2).max(8),
             private: z.boolean(),
         })
