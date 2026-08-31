@@ -1,9 +1,9 @@
 /**
  * Ludo adapter — wraps @playhive/ludo behind the GameEngineAdapter interface.
  *
- * Uses the session API (createSession, processActionWithSession) for pure,
- * stateless game processing. No global hydration needed — each call receives
- * and returns a LudoSession that captures all mutable state.
+ * Server-authoritative dice: ROLL_DICE generates a random value stored in
+ * the session. MOVE_TOKEN validates against the stored value.
+ * No client-supplied distance is trusted.
  */
 
 import {
@@ -50,30 +50,84 @@ function processAction(
     seat: number,
 ): ProcessResult {
     const s = deserialize(state);
+    const session = { ...s.session };
 
-    const ludoAction: LudoEngineAction = {
-        type: action.type as LudoEngineAction["type"],
-        token: action.token as number | undefined,
-        from: action.from as number | undefined,
-        to: action.to as number | undefined,
-        distance: action.distance as number | undefined,
-    };
+    // --- ROLL_DICE: server generates the dice value ---
+    if (action.type === "ROLL_DICE") {
+        const distance = Math.floor(Math.random() * 6) + 1;
+        session.pendingDistance = distance;
 
-    const { session: newSession, result } = ludoProcessAction(
-        s.session,
-        ludoAction,
-    );
+        return {
+            state: { session } as unknown as GameStateData,
+            events: [{ type: "dice", value: distance, seat }],
+            gameOver: false,
+        };
+    }
 
+    // --- MOVE_TOKEN: validate against server-generated dice ---
+    if (action.type === "MOVE_TOKEN") {
+        const clientDistance = action.distance as number | undefined;
+        const token = action.token as number | undefined;
+
+        if (token === undefined) {
+            return {
+                state: { session } as unknown as GameStateData,
+                events: [],
+                gameOver: false,
+            };
+        }
+
+        // Must have a pending dice roll
+        if (session.pendingDistance === undefined) {
+            return {
+                state: { session } as unknown as GameStateData,
+                events: [],
+                gameOver: false,
+            };
+        }
+
+        // Validate dice value matches
+        if (clientDistance !== undefined && clientDistance !== session.pendingDistance) {
+            return {
+                state: { session } as unknown as GameStateData,
+                events: [],
+                gameOver: false,
+            };
+        }
+
+        // Use the server-generated distance, clear pending
+        const distance = session.pendingDistance;
+        session.pendingDistance = undefined;
+
+        const ludoAction: LudoEngineAction = {
+            type: "MOVE_TOKEN",
+            token,
+            distance,
+        };
+
+        const { session: newSession, result } = ludoProcessAction(
+            session,
+            ludoAction,
+        );
+
+        return {
+            state: { session: newSession } as unknown as GameStateData,
+            events: result.events,
+            gameOver: result.gameOver,
+            result: result.result
+                ? {
+                      winner: result.result.winner,
+                      reason: result.result.reason,
+                  }
+                : undefined,
+        };
+    }
+
+    // --- Unknown action ---
     return {
-        state: { session: newSession } as unknown as GameStateData,
-        events: result.events,
-        gameOver: result.gameOver,
-        result: result.result
-            ? {
-                  winner: result.result.winner,
-                  reason: result.result.reason,
-              }
-            : undefined,
+        state: { session } as unknown as GameStateData,
+        events: [],
+        gameOver: false,
     };
 }
 
@@ -95,6 +149,7 @@ function serializeForClient(state: GameStateData): Record<string, unknown> {
         ranks: gameOver
             ? [...session.playersWithEnds, session.players[0]]
             : undefined,
+        pendingDistance: session.pendingDistance,
     };
 }
 
