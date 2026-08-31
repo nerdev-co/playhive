@@ -133,8 +133,8 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
                         mySeat: seat.seat,
                         config: {
                             maxPlayers: updatedRoom.maxPlayers,
-                            media: updatedRoom.settings.media,
-                            private: updatedRoom.settings.private,
+                            media: updatedRoom.settings?.media ?? { voice: false, video: false },
+                            private: updatedRoom.settings?.private ?? false,
                         },
                         initialState: clientState,
                     }),
@@ -157,8 +157,8 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
         }));
         createMatch(updatedRoom.id, updatedRoom.gameType, seats, {
             maxPlayers: updatedRoom.maxPlayers,
-            media: updatedRoom.settings.media,
-            private: updatedRoom.settings.private,
+            media: updatedRoom.settings?.media ?? { voice: false, video: false },
+            private: updatedRoom.settings?.private ?? false,
         }).catch((err) => console.error("[players] createMatch failed:", err));
     }, 1000);
 }

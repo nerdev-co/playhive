@@ -64,7 +64,7 @@ export function handleMessage(
                 break;
             case "LIST_ROOMS": {
                 const publicRooms = [...rooms.values()]
-                    .filter(r => r.status === "WAITING" && !r.settings.private)
+                    .filter(r => r.status === "WAITING" && !r.settings?.private)
                     .map(r => ({
                         id: r.id,
                         name: r.name,

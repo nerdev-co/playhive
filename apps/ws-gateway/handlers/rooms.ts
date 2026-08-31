@@ -23,10 +23,11 @@ export function handleCreateRoom(
     ws: WebSocket,
     playerId: string,
     payload: {
-        game: GameType;
-        maxPlayers: number;
-        private: boolean;
-        settings: {
+        game?: GameType;
+        gameType?: GameType;
+        maxPlayers?: number;
+        private?: boolean;
+        settings?: {
             media: { voice: boolean; video: boolean };
             maxPlayers: number;
             private: boolean;
@@ -34,16 +35,22 @@ export function handleCreateRoom(
     },
 ): void {
     const roomId = generateShortId();
+    const gameType = (payload.game ?? payload.gameType) as GameType;
+    const settings = payload.settings ?? {
+        media: { voice: false, video: false },
+        maxPlayers: payload.maxPlayers ?? 2,
+        private: payload.private ?? false,
+    };
 
     const room: RoomSnapshot = {
         id: roomId,
-        name: `${payload.game} Room`,
-        gameType: payload.game,
-        maxPlayers: payload.maxPlayers,
+        name: `${gameType} Room`,
+        gameType,
+        maxPlayers: payload.maxPlayers ?? 2,
         status: "WAITING",
-        settings: payload.settings,
+        settings,
         hostId: playerId,
-        seats: Array.from({ length: payload.maxPlayers }, (_, i) =>
+        seats: Array.from({ length: payload.maxPlayers ?? 2 }, (_, i) =>
             i === 0
                 ? {
                       seat: 0,
