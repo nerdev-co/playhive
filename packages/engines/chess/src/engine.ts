@@ -1,4 +1,4 @@
-import type { EngineState, ChessMove, ChessEvent, EngineAction, EngineResult, ChessOptions } from "./types";
+import type { EngineState, ChessMove, ChessEvent, EngineAction, EngineResult, ChessOptions, ChessSession, SerializedChessSession } from "./types";
 import { START_FEN, parseFEN } from "./store";
 import { generateMoves, makeMove, isInCheck, toPosition } from "./moves";
 import { moveToSAN } from "./san";
@@ -217,6 +217,336 @@ export function chooseBotAction(depth: number = 6): EngineAction {
         from: result.bestMove.from,
         to: result.bestMove.to,
         promotion: result.bestMove.promotion,
+    };
+}
+
+// ─── Session-based API ───────────────────────────────────────────────
+// These functions are stateless — they take a ChessSession, process it,
+// and return a new session. Safe for concurrent games.
+
+/**
+ * Create a new chess session from options.
+ * Replaces initGame() for multi-game usage.
+ */
+export function createSession(options: ChessOptions = {}): ChessSession {
+    const engine = parseFEN(options.fen || START_FEN);
+    const rep = new RepetitionTable();
+    const board = fenToBoard(engine.fen);
+    const hash = computeHash(board, engine.turn, engine.castling, engine.enPassant);
+    rep.add(hash);
+    return {
+        state: engine,
+        repetitions: rep.serialize(),
+        pendingDrawOffer: null,
+    };
+}
+
+/**
+ * Process an action within a session. Returns new session + result.
+ * Pure function — does not mutate the input session.
+ * @param actingSeat - seat index of the player performing the action (for draw negotiation)
+ */
+export function applyActionWithSession(
+    session: ChessSession,
+    action: EngineAction,
+    actingSeat?: number,
+): { session: ChessSession; result: EngineResult } {
+    const rep = RepetitionTable.deserialize(session.repetitions);
+    const events: ChessEvent[] = [];
+    let engine = { ...session.state };
+    let pendingDrawOffer = session.pendingDrawOffer;
+
+    // RESIGN
+    if (action.type === "RESIGN") {
+        const winner = engine.turn === "white" ? "black" : "white";
+        engine.gameOver = true;
+        engine.result = winner;
+        engine.resultReason = "resignation";
+        events.push({ type: "resign", winner, fen: engine.fen });
+
+        return {
+            session: {
+                state: engine,
+                repetitions: rep.serialize(),
+                pendingDrawOffer: null,
+            },
+            result: {
+                events,
+                state: engine,
+                gameOver: true,
+                result: { winner, reason: "resignation" },
+            },
+        };
+    }
+
+    // DRAW_OFFER
+    if (action.type === "DRAW_OFFER") {
+        pendingDrawOffer = engine.turn;
+        events.push({ type: "draw_offer", offeredBy: engine.turn, fen: engine.fen });
+
+        return {
+            session: {
+                state: engine,
+                repetitions: rep.serialize(),
+                pendingDrawOffer,
+                pendingDrawOfferSeat: actingSeat,
+            },
+            result: {
+                events,
+                state: engine,
+                gameOver: false,
+            },
+        };
+    }
+
+    // DRAW_ACCEPT
+    if (action.type === "DRAW_ACCEPT") {
+        const offerValid = pendingDrawOffer !== null &&
+            (actingSeat === undefined || actingSeat !== session.pendingDrawOfferSeat);
+        if (offerValid) {
+            engine.gameOver = true;
+            engine.result = "draw";
+            engine.resultReason = "agreement";
+            events.push({ type: "draw_accept", fen: engine.fen });
+            events.push({ type: "draw", reason: "agreement", fen: engine.fen });
+            pendingDrawOffer = null;
+        }
+
+        return {
+            session: {
+                state: engine,
+                repetitions: rep.serialize(),
+                pendingDrawOffer,
+            },
+            result: {
+                events,
+                state: engine,
+                gameOver: engine.gameOver,
+                result: engine.gameOver
+                    ? { winner: "draw", reason: "agreement" }
+                    : undefined,
+            },
+        };
+    }
+
+    // DRAW_DECLINE
+    if (action.type === "DRAW_DECLINE") {
+        const offerValid = pendingDrawOffer !== null &&
+            (actingSeat === undefined || actingSeat !== session.pendingDrawOfferSeat);
+        if (offerValid) {
+            events.push({ type: "draw_decline", fen: engine.fen });
+            pendingDrawOffer = null;
+        }
+
+        return {
+            session: {
+                state: engine,
+                repetitions: rep.serialize(),
+                pendingDrawOffer,
+            },
+            result: {
+                events,
+                state: engine,
+                gameOver: false,
+            },
+        };
+    }
+
+    // MOVE
+    if (action.type === "MOVE") {
+        const move: ChessMove = {
+            from: action.from,
+            to: action.to,
+            promotion: action.promotion,
+        };
+
+        // Validate legality
+        const legalMovesGroups = generateMoves(engine);
+        const isLegal = legalMovesGroups.some((g) =>
+            g.moves.some(
+                (m) =>
+                    m.from === move.from &&
+                    m.to === move.to &&
+                    m.promotion === move.promotion,
+            ),
+        );
+
+        if (!isLegal) {
+            return {
+                session: {
+                    state: engine,
+                    repetitions: rep.serialize(),
+                    pendingDrawOffer,
+                },
+                result: {
+                    events: [],
+                    state: engine,
+                    gameOver: false,
+                },
+            };
+        }
+
+        const prevTurn = engine.turn;
+        const san = moveToSAN(engine, move);
+
+        engine = makeMove(engine, move);
+
+        // Stamp SAN + check onto history
+        const historyEntry = engine.moveHistory[engine.moveHistory.length - 1];
+        const givesCheck = isInCheck(engine);
+        if (historyEntry) {
+            historyEntry.san = san;
+            historyEntry.check = givesCheck;
+        }
+
+        const moveEvent: ChessEvent = {
+            type: "move",
+            move: {
+                from: action.from,
+                to: action.to,
+                promotion: action.promotion,
+                san,
+                capture: historyEntry?.capture ?? false,
+                check: givesCheck,
+                checkmate: false,
+            },
+            fen: engine.fen,
+            turn: engine.turn,
+        };
+        events.push(moveEvent);
+
+        // Track repetition
+        const board = fenToBoard(engine.fen);
+        const hash = computeHash(board, engine.turn, engine.castling, engine.enPassant);
+        rep.add(hash);
+
+        // Check game-ending conditions
+        if (givesCheck) {
+            events.push({ type: "check", fen: engine.fen });
+            if (isCheckmate(engine)) {
+                engine.gameOver = true;
+                engine.result = prevTurn;
+                engine.resultReason = "checkmate";
+                moveEvent.move.checkmate = true;
+                if (historyEntry) historyEntry.checkmate = true;
+                events.push({ type: "checkmate", winner: prevTurn, fen: engine.fen });
+            }
+        } else if (isStalemate(engine)) {
+            engine.gameOver = true;
+            engine.result = "draw";
+            engine.resultReason = "stalemate";
+            events.push({ type: "stalemate", fen: engine.fen });
+        } else if (isDraw(engine)) {
+            engine.gameOver = true;
+            engine.result = "draw";
+            const reason = engine.halfmoveClock >= 100 ? "fifty_move_rule" : "insufficient_material";
+            engine.resultReason = reason;
+            events.push({ type: "draw", reason, fen: engine.fen });
+        } else if (rep.getCount(hash) >= 5) {
+            engine.gameOver = true;
+            engine.result = "draw";
+            engine.resultReason = "fivefold_repetition";
+            events.push({ type: "draw", reason: "fivefold_repetition", fen: engine.fen });
+        }
+
+        pendingDrawOffer = null;
+
+        return {
+            session: {
+                state: engine,
+                repetitions: rep.serialize(),
+                pendingDrawOffer,
+            },
+            result: {
+                events,
+                state: engine,
+                gameOver: engine.gameOver,
+                result: engine.gameOver
+                    ? {
+                          winner: engine.result || "draw",
+                          reason: engine.resultReason || "draw",
+                      }
+                    : undefined,
+            },
+        };
+    }
+
+    // Unknown action
+    return {
+        session: {
+            state: engine,
+            repetitions: rep.serialize(),
+            pendingDrawOffer,
+        },
+        result: {
+            events,
+            state: engine,
+            gameOver: false,
+        },
+    };
+}
+
+/**
+ * Get legal actions for a session.
+ */
+export function legalActionsWithSession(session: ChessSession): EngineAction[] {
+    const allMoves = generateMoves(session.state);
+    const actions: EngineAction[] = allMoves.flatMap(({ moves }) =>
+        moves.map((move) => ({
+            type: "MOVE" as const,
+            from: move.from,
+            to: move.to,
+            promotion: move.promotion,
+        })),
+    );
+
+    actions.push({ type: "RESIGN" });
+
+    if (!session.pendingDrawOffer) {
+        actions.push({ type: "DRAW_OFFER" });
+    }
+
+    if (session.pendingDrawOffer && session.pendingDrawOffer !== session.state.turn) {
+        actions.push({ type: "DRAW_ACCEPT" });
+        actions.push({ type: "DRAW_DECLINE" });
+    }
+
+    return actions;
+}
+
+/**
+ * Bot chooses best move for a session.
+ */
+export function chooseBotActionWithSession(session: ChessSession, depth: number = 6): EngineAction {
+    const pos = toPosition(session.state);
+    const result = search(pos, depth);
+    return {
+        type: "MOVE",
+        from: result.bestMove.from,
+        to: result.bestMove.to,
+        promotion: result.bestMove.promotion,
+    };
+}
+
+/**
+ * Serialize a session for persistence.
+ */
+export function serializeSession(session: ChessSession): SerializedChessSession {
+    return {
+        state: session.state,
+        repetitions: session.repetitions,
+        pendingDrawOffer: session.pendingDrawOffer,
+    };
+}
+
+/**
+ * Deserialize a persisted session.
+ */
+export function deserializeSession(data: SerializedChessSession): ChessSession {
+    return {
+        state: data.state,
+        repetitions: data.repetitions,
+        pendingDrawOffer: data.pendingDrawOffer,
     };
 }
 

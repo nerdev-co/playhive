@@ -17,6 +17,23 @@ export * from "./evaluation";
 export * from "./search";
 export * from "./san";
 export * from "./pgn";
-export * from "./engine";
+export {
+    initGame,
+    getEngineState,
+    getMoves,
+    legalActions,
+    applyAction,
+    canClaimThreefold,
+    isFivefoldRepetition,
+    chooseBotAction,
+    checkGameOver,
+    isInsufficientMaterial,
+    createSession,
+    applyActionWithSession,
+    legalActionsWithSession,
+    chooseBotActionWithSession,
+    serializeSession,
+    deserializeSession,
+} from "./engine";
 export * from "./zobrist";
 export { RepetitionTable } from "./repetition";

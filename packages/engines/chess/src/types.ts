@@ -175,6 +175,33 @@ export interface EngineResult {
 }
 
 /**
+ * Session-based state for multi-game concurrency.
+ *
+ * Encapsulates all per-game mutable state that was previously module-level.
+ * Each concurrent game gets its own ChessSession — no shared globals.
+ */
+export interface ChessSession {
+    /** Current position state */
+    state: EngineState;
+    /** Repetition tracking for this game */
+    repetitions: [number, number][];
+    /** Pending draw offer color, if any */
+    pendingDrawOffer: "white" | "black" | null;
+    /** Seat index of the player who offered the draw */
+    pendingDrawOfferSeat?: number;
+}
+
+/**
+ * Serialized form of ChessSession for persistence.
+ * RepetitionTable is serialized as [hash, count] pairs.
+ */
+export interface SerializedChessSession {
+    state: EngineState;
+    repetitions: [number, number][];
+    pendingDrawOffer: "white" | "black" | null;
+}
+
+/**
  * Converts an algebraic square (e.g., "e4") to a 0-63 board index.
  * Rank 1 (white's back rank) = index 0-7, Rank 8 = index 56-63.
  *
