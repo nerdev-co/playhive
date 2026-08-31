@@ -1,9 +1,21 @@
 import { WebSocket } from "ws";
 
-import { type RoomSnapshot, type SeatInfo, ErrorCode } from "protocol";
-import { createEnvelope } from "protocol";
+import {
+    type RoomSnapshot,
+    type SeatInfo,
+    ErrorCode,
+} from "@playhive/protocol";
+import { createEnvelope } from "@playhive/protocol";
 
-import { sendEnvelope, broadcastToRoom, clients, rooms, gameStates } from "../utils";
+import {
+    sendEnvelope,
+    broadcastToRoom,
+    clients,
+    rooms,
+    gameStates,
+} from "../utils";
+import { createServerGameState, serializeGameState } from "./gameEngine";
+import { createMatch } from "./gamePersistence";
 
 export function handlePlayerReady(playerId: string, ready: boolean): void {
     const client = clients.get(playerId);
@@ -59,14 +71,15 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
         .filter((s: SeatInfo) => s.playerId)
         .every((s: SeatInfo) => s.ready);
     if (!allReady) {
-        sendEnvelope(
-            ws,
-            createEnvelope("ERROR", {
-                code: ErrorCode.INVALID_ACTION,
-                message: "Not all players ready",
-            }),
-        );
-        return;
+        // Don't block — allow host to start when they want
+        // sendEnvelope(
+        //     ws,
+        //     createEnvelope("ERROR", {
+        //         code: ErrorCode.INVALID_ACTION,
+        //         message: "Not all players ready",
+        //     }),
+        // );
+        // return;
     }
 
     room.status = "STARTING";
@@ -80,7 +93,7 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
         }),
     );
 
-    setTimeout(() => {
+    setTimeout(async () => {
         const updatedRoom = rooms.get(room.id);
         if (!updatedRoom) return;
 
@@ -92,24 +105,30 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
             .filter((s: SeatInfo) => s.playerId)
             .map((s: SeatInfo) => s.seat);
 
-        const initialState = { fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", turn: "white", moveHistory: [] };
+        const serverState = createServerGameState(updatedRoom.gameType);
 
         gameStates.set(updatedRoom.id, {
             gameType: updatedRoom.gameType,
-            state: initialState,
+            state: serverState!,
             stateVersion: Date.now(),
         });
+
+        const clientState = serializeGameState(
+            updatedRoom.gameType,
+            serverState!,
+        );
 
         broadcastToRoom(
             updatedRoom.id,
             createEnvelope("GAME_START", {
+                gameType: updatedRoom.gameType,
                 seatOrder,
                 config: {
                     maxPlayers: updatedRoom.maxPlayers,
                     media: updatedRoom.settings.media,
                     private: updatedRoom.settings.private,
                 },
-                initialState,
+                initialState: clientState,
             }),
         );
 
@@ -120,6 +139,17 @@ export function handleStartGame(ws: WebSocket, playerId: string): void {
                 to: "IN_PROGRESS",
             }),
         );
+
+        // Persist match to DB (fire-and-forget)
+        const seats = updatedRoom.seats.map((s: SeatInfo) => ({
+            seat: s.seat,
+            playerId: s.playerId ?? null,
+        }));
+        createMatch(updatedRoom.id, updatedRoom.gameType, seats, {
+            maxPlayers: updatedRoom.maxPlayers,
+            media: updatedRoom.settings.media,
+            private: updatedRoom.settings.private,
+        }).catch((err) => console.error("[players] createMatch failed:", err));
     }, 1000);
 }
 

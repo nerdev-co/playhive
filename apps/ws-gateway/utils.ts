@@ -14,14 +14,14 @@ import {
     type RoomStatus,
     type ParticipantStatus,
     ErrorCode,
-} from "protocol";
+} from "@playhive/protocol";
 
 import {
     validateEnvelope,
     createEnvelope as protocolCreateEnvelope,
     isClientMessage,
     parseEnvelope,
-} from "protocol";
+} from "@playhive/protocol";
 
 export const createEnvelope = protocolCreateEnvelope;
 
@@ -36,10 +36,12 @@ export interface ConnectedClient {
 export const clients = new Map<string, ConnectedClient>();
 export const rooms = new Map<string, RoomSnapshot>();
 
+import type { GameStateData } from "./handlers/gameEngine";
+
 /** Server-side game state per room. Keyed by roomId. */
 export const gameStates = new Map<string, {
     gameType: GameType;
-    state: Record<string, unknown>;
+    state: GameStateData;
     stateVersion: number;
 }>();
 
@@ -47,17 +49,21 @@ export function generateId(): string {
     return crypto.randomUUID();
 }
 
-export function generateInviteCode(): string {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
+const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const SHORT_ID_LENGTH = 5;
 
-export function generateInviteCodeFromId(id: string): string {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-        hash = (hash << 5) - hash + id.charCodeAt(i);
-        hash |= 0;
+export function generateShortId(): string {
+    let id = "";
+    const bytes = new Uint8Array(SHORT_ID_LENGTH);
+    crypto.getRandomValues(bytes);
+    for (let i = 0; i < SHORT_ID_LENGTH; i++) {
+        const byte = bytes[i];
+        if (byte !== undefined) {
+            const char = CHARS[byte % CHARS.length];
+            if (char) id += char;
+        }
     }
-    return Math.abs(hash).toString(36).substring(0, 6).toUpperCase();
+    return id;
 }
 
 export function sendEnvelope<T>(ws: WebSocket, envelope: Envelope<T>): void {
