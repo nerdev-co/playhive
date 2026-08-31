@@ -11,7 +11,7 @@ interface Match {
   id: string;
   game: string;
   status: string;
-  result: string | null;
+  result: { winner?: string; reason?: string } | string | null;
   seats: { playerId: string }[];
   startedAt: string | null;
   finishedAt: string | null;
@@ -67,15 +67,13 @@ export default function HistoryPage() {
       <div className="grid gap-3">
         {matches.map((match) => {
           const date = match.startedAt ? new Date(match.startedAt).toLocaleDateString() : "—";
-          const resultLabel = match.status === "finished"
-            ? match.result === "draw"
-              ? "Draw"
-              : match.result === "white"
-                ? "White wins"
-                : match.result === "black"
-                  ? "Black wins"
-                  : match.status
-            : match.status;
+          const resultLabel = (() => {
+            if (match.status !== "finished") return match.status;
+            if (!match.result) return "—";
+            if (typeof match.result === "string") return match.result;
+            if (match.result.reason === "draw" || !match.result.winner) return "Draw";
+            return `${match.result.winner} wins`;
+          })();
 
           return (
             <Card key={match.id} hoverable className="flex items-center justify-between p-4">
