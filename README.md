@@ -12,15 +12,6 @@
 
   - [lib-chess.js](https://github.com/NalinDalal/chess.js) : our own implementation
 
-- Snake ladder: [be](https://github.com/shrinjoy979/multiplayer-snake-and-ladder-game-backend/tree/main), [fe](https://github.com/shrinjoy979/multiplayer-snake-and-ladder-game-frontend)
-
-- checkers
-
-- Uno - [gh](https://github.com/eperezcosano/Uno), [blog-1](https://eperezcosano.github.io/uno-part1/), [blog-2](https://eperezcosano.github.io/uno-part2/)
-
-[Tic-Tac-Toe](https://youtu.be/YUgUC8knm-I?si=XRrs616gEp1y-al6)
-you may use [this also](https://github.com/NalinDalal/scalable-stateful-app)
-
 ---
 
 ## How Packages Will Be Utilized
