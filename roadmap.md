@@ -75,8 +75,8 @@ Same layers as Ludo, but:
 | **Game UI**              | ✅     | Board rendering, move input, legal move highlights                                                                      |
 | **WebRTC relay**         | ✅     | `MEDIA_OFFER`/`MEDIA_ANSWER`/`MEDIA_ICE` relay in the gateway                                                           |
 | **WebRTC client + TURN** | 🔧     | Client video/voice UI, renegotiation; coturn in compose (dev), managed provider (Twilio/Cloudflare Calls) path at scale |
-| **History**              |        | Match list, event replay from Postgres                                                                                  |
-| **Auth/profile**         |        | Guest token storage, username, avatar                                                                                   |
+| **History**              | ✅     | Match list, event replay from Postgres                                                                                  |
+| **Auth/profile**         | ✅     | Guest token storage, username, avatar                                                                                   |
 
 ---
 
